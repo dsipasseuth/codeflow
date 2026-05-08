@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - '**'        # Matches every pull request target branch
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Mount Bazel Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+          key: bazel-cache-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '.bazelversion') }}
+          restore-keys: |
+            bazel-cache-${{ runner.os }}-
+
+      - name: Install Bazelisk
+        run: |
+          sudo curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 -o /usr/local/bin/bazel
+          sudo chmod +x /usr/local/bin/bazel
+
+      - name: Build
+        run: bazel build //...
+
+      - name: Test
+        run: bazel test //...

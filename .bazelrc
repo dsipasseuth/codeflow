@@ -1,0 +1,16 @@
+# Bazel 9 specific: repository cache optimization
+build --repo_contents_cache=~/.bazel/repo_cache
+
+build --tool_java_runtime_version=remotejdk_25
+build --java_language_version=25
+build --tool_java_language_version=25
+
+# Standard Java flags
+build --java_toolchain=@rules_java//toolchains:default_toolchain
+test --test_output=errors
+
+# Force the JUnit 5 runner to ignore the missing Security Manager
+test --jvmopt="-Dcom.github.bazel_contrib.contrib_rules_jvm.junit5.allow_exit=true"
+
+# Explicitly tell Java 25 we aren't using a Security Manager
+test --jvmopt="-Djava.security.manager=disallow"

@@ -1,0 +1,15 @@
+load("//tools:junit6.bzl", "junit6_test")
+
+[junit6_test(
+    name = f.removesuffix(".java"),
+    srcs = [f],
+    package = "com.codeflow.result",
+    deps = [
+        "//java/com/codeflow/result:result",
+    ],
+) for f in glob(["*Test.java"])]
+
+test_suite(
+    name = "result_tests",
+    tests = [f.removesuffix(".java") for f in glob(["*Test.java"])],
+)
