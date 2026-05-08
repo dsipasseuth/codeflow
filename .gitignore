@@ -22,3 +22,23 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Bazel build artifacts
+/bazel-*
+
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS files
+.DS_Store
+
+# Ignore the actual downloaded binaries (cached by the wrapper)
+.bazel_download_cache/
+
+# Do NOT ignore the wrapper script
+!/bazel
