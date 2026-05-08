@@ -3,5 +3,5 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 sh_binary(
     name = "install_hooks",
     srcs = ["setup-hooks.sh"],
-    data = ["//tools/hooks:pre-commit.sh"], # Optional: if you define a filegroup there
+    data = ["//tools/hooks:pre-commit.sh"],  # Optional: if you define a filegroup there
 )
