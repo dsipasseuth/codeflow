@@ -4,14 +4,24 @@ module(
     bazel_compatibility = [">=9.1.0"],
 )
 
+bazel_dep(name = "rules_shell", version = "0.3.0")
 bazel_dep(name = "rules_java", version = "9.6.1")
 bazel_dep(name = "rules_jvm_external", version = "7.0")
 bazel_dep(name = "contrib_rules_jvm", version = "0.31.1")
+bazel_dep(name = "aspect_rules_lint", version = "2.5.2")
+bazel_dep(name = "buildifier_prebuilt", version = "7.3.1")
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-
 maven.install(
     artifacts = [
+
+        # Google Format
+        "com.google.googlejavaformat:google-java-format:1.27.0",
+
+        # Error Prone
+        "com.google.errorprone:error_prone_core:2.44.0",
+        "com.google.errorprone:error_prone_annotations:2.44.0",
+
         # The Core JUnit 6 (Jupiter) API & Engine
         "org.junit.jupiter:junit-jupiter-api:5.11.0",
         "org.junit.jupiter:junit-jupiter-engine:5.11.0",

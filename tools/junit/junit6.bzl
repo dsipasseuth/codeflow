@@ -18,7 +18,6 @@ def junit6_test(
         deps = [],
         runtime_deps = [],
         package = None):
-
     if package == None:
         fail("package must be specified")
 
@@ -27,19 +26,14 @@ def junit6_test(
     java_test(
         name = name,
         srcs = srcs,
-
         use_testrunner = False,
         main_class = "org.junit.platform.console.ConsoleLauncher",
-
         args = [
             "--select-class",
             test_class,
         ],
-
         deps = deps + JUNIT_DEPS,
-
         runtime_deps = runtime_deps + JUNIT_RUNTIME_DEPS,
-
         jvm_flags = [
             "-Djava.security.manager=disallow",
         ],

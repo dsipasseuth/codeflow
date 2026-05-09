@@ -1,11 +1,11 @@
-load("//tools:junit6.bzl", "junit6_test")
+load("//tools/junit:junit6.bzl", "junit6_test")
 
 [junit6_test(
     name = f.removesuffix(".java"),
     srcs = [f],
     package = "com.codeflow.result",
     deps = [
-        "//java/com/codeflow/result:result",
+        "//java/com/codeflow/result",
     ],
 ) for f in glob(["*Test.java"])]
 
