@@ -22,8 +22,8 @@ public sealed interface Result<T, E> permits Result.Ok, Result.Err {
   /**
    * Represents a successful outcome containing a value.
    *
-   * @param <T> Success type
-   * @param <E> Error type
+   * @param <T> The success type.
+   * @param <E> The error type.
    * @param value The success value, must not be null.
    */
   record Ok<T, E>(T value) implements Result<T, E> {
@@ -38,9 +38,9 @@ public sealed interface Result<T, E> permits Result.Ok, Result.Err {
   /**
    * Represents a failed outcome containing an error.
    *
-   * @param <T> Success type
-   * @param <E> Error type
-   * @param error The error value must not be null.
+   * @param <T> The success type.
+   * @param <E> The error type.
+   * @param error The error value, must not be null.
    */
   record Err<T, E>(E error) implements Result<T, E> {
     public Err {
@@ -118,6 +118,39 @@ public sealed interface Result<T, E> permits Result.Ok, Result.Err {
   }
 
   /**
+   * Maps the error value to a new error value using the provided mapper function. If this is an
+   * {@link Ok}, the success is propagated unchanged.
+   *
+   * @param fn The function to apply to the error value.
+   * @param <F> The new error type.
+   * @return A new Result containing the original success or the mapped error.
+   */
+  default <F> Result<T, F> mapError(Function<? super E, ? extends F> fn) {
+    requireNonNull(fn, "Error mapper function cannot be null");
+    return switch (this) {
+      case Ok(var v) -> new Ok<>(v);
+      case Err(var e) -> new Err<>(fn.apply(e));
+    };
+  }
+
+  /**
+   * Recovers from an error by applying a function that maps the error to a new Result. If this is
+   * an {@link Ok}, the success is propagated unchanged.
+   *
+   * @param fn The function to apply to the error value if this is an {@link Err}.
+   * @param <F> The new error type.
+   * @return The Result produced by the mapper, or the original success.
+   */
+  default <F> Result<T, F> recover(
+      Function<? super E, ? extends Result<? extends T, ? extends F>> fn) {
+    requireNonNull(fn, "Recover function cannot be null");
+    return switch (this) {
+      case Ok(var v) -> new Ok<>(v);
+      case Err(var e) -> narrow(requireNonNull(fn.apply(e), "Recover result cannot be null"));
+    };
+  }
+
+  /**
    * Performs an action on the success value if present, then returns this Result. Useful for side
    * effects like logging or debugging.
    *
@@ -133,29 +166,26 @@ public sealed interface Result<T, E> permits Result.Ok, Result.Err {
   }
 
   /**
-   * Consumes the success value if present; otherwise, throws an exception.
-   *
-   * @param consumer The action to perform on the success value.
-   * @throws IllegalArgumentException if this Result is an {@link Err}.
-   */
-  default void consumeOrThrow(Consumer<? super T> consumer) {
-    requireNonNull(consumer, "Consumer cannot be null");
-    switch (this) {
-      case Ok(var value) -> consumer.accept(value);
-      case Err(var error) ->
-          throw new IllegalArgumentException("Cannot consume Err value: " + error);
-    }
-  }
-
-  /**
    * Consumes the success value if present; does nothing if this is an {@link Err}.
    *
    * @param fn The action to perform on the success value.
    */
-  default void consumeOrNothing(Consumer<? super T> fn) {
+  default void ifOk(Consumer<? super T> fn) {
     requireNonNull(fn, "Consumer cannot be null");
     if (this instanceof Ok(T value)) {
       fn.accept(value);
+    }
+  }
+
+  /**
+   * Consumes the error value if present; does nothing if this is an {@link Ok}.
+   *
+   * @param fn The action to perform on the success value.
+   */
+  default void ifErr(Consumer<? super E> fn) {
+    requireNonNull(fn, "Consumer cannot be null");
+    if (this instanceof Err(E error)) {
+      fn.accept(error);
     }
   }
 
@@ -199,6 +229,24 @@ public sealed interface Result<T, E> permits Result.Ok, Result.Err {
     return switch (this) {
       case Ok(var value) -> value;
       case Err(var error) -> fallbackFn.apply(error);
+    };
+  }
+
+  /**
+   * Returns the success value if this is an {@link Ok}; otherwise, throws an exception produced by
+   * the provided function.
+   *
+   * @param exceptionMapper The function to produce an exception from the error value.
+   * @param <X> The type of the exception to be thrown.
+   * @return The success value.
+   * @throws X if this Result is an {@link Err}.
+   */
+  default <X extends Throwable> T unwrapOrElseThrow(
+      Function<? super E, ? extends X> exceptionMapper) throws X {
+    requireNonNull(exceptionMapper, "Exception mapper cannot be null");
+    return switch (this) {
+      case Ok(var value) -> value;
+      case Err(var error) -> throw exceptionMapper.apply(error);
     };
   }
 

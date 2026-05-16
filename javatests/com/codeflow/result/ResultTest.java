@@ -379,6 +379,102 @@ public class ResultTest {
   }
 
   @Test
+  @DisplayName("mapError should map Err value")
+  public void testMapErrorMapsErr() {
+    Result<String, Integer> result = Result.<String, String>err("error").mapError(String::length);
+
+    assertEquals(new Result.Err<>(5), result);
+  }
+
+  @Test
+  @DisplayName("mapError should propagate Ok")
+  public void testMapErrorPropagatesOk() {
+    Result<String, Integer> result = Result.<String, String>ok("value").mapError(String::length);
+
+    assertEquals(new Result.Ok<>("value"), result);
+  }
+
+  @Test
+  @DisplayName("mapError should reject null mapper")
+  public void testMapErrorRejectsNullMapper() {
+    var exception =
+        assertThrows(
+            NullPointerException.class, () -> Result.<String, String>err("error").mapError(null));
+
+    assertEquals("Error mapper function cannot be null", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("mapError should reject null mapper even for Ok")
+  public void testMapErrorRejectsNullMapperForOk() {
+    var exception =
+        assertThrows(
+            NullPointerException.class, () -> Result.<String, String>ok("value").mapError(null));
+
+    assertEquals("Error mapper function cannot be null", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("mapError should reject null mapped value")
+  public void testMapErrorRejectsNullMappedValue() {
+    var exception =
+        assertThrows(
+            NullPointerException.class,
+            () -> Result.<String, String>err("error").mapError(error -> null));
+
+    assertEquals("Err value cannot be null", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("recover should map Err to Ok")
+  public void testRecoverMapsErrToOk() {
+    Result<Integer, String> result =
+        Result.<Integer, String>err("not found").recover(error -> Result.ok(error.length()));
+
+    assertEquals(new Result.Ok<>(9), result);
+  }
+
+  @Test
+  @DisplayName("recover should map Err to another Err")
+  public void testRecoverMapsErrToErr() {
+    Result<Integer, String> result =
+        Result.<Integer, String>err("not found")
+            .recover(error -> Result.err("recovered: " + error));
+
+    assertEquals(new Result.Err<>("recovered: not found"), result);
+  }
+
+  @Test
+  @DisplayName("recover should propagate Ok")
+  public void testRecoverPropagatesOk() {
+    Result<Integer, String> result =
+        Result.<Integer, String>ok(123).recover(error -> Result.ok(error.length()));
+
+    assertEquals(new Result.Ok<>(123), result);
+  }
+
+  @Test
+  @DisplayName("recover should reject null mapper")
+  public void testRecoverRejectsNullMapper() {
+    var exception =
+        assertThrows(
+            NullPointerException.class, () -> Result.<Integer, String>err("error").recover(null));
+
+    assertEquals("Recover function cannot be null", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("recover should reject null mapped result")
+  public void testRecoverRejectsNullMappedResult() {
+    var exception =
+        assertThrows(
+            NullPointerException.class,
+            () -> Result.<Integer, String>err("error").recover(error -> null));
+
+    assertEquals("Recover result cannot be null", exception.getMessage());
+  }
+
+  @Test
   @DisplayName("also should run consumer for Ok and return same Result")
   public void testAlsoRunsConsumerForOk() {
     AtomicInteger seen = new AtomicInteger();
@@ -407,68 +503,64 @@ public class ResultTest {
   public void testAlsoRejectsNullConsumer() {
     var exception =
         assertThrows(NullPointerException.class, () -> Result.<Integer, String>ok(1).also(null));
-
     assertEquals("Consumer cannot be null", exception.getMessage());
   }
 
   @Test
-  @DisplayName("consumeOrThrow should consume Ok value")
-  public void testConsumeOrThrowConsumesOk() {
+  @DisplayName("ifOk should consume Ok value")
+  public void testIfOkConsumesOk() {
     AtomicInteger seen = new AtomicInteger();
 
-    Result.<Integer, String>ok(42).consumeOrThrow(seen::set);
+    Result.<Integer, String>ok(42).ifOk(seen::set);
 
     assertEquals(42, seen.get());
   }
 
   @Test
-  @DisplayName("consumeOrThrow should throw for Err")
-  public void testConsumeOrThrowThrowsForErr() {
-    var exception =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> Result.<Integer, String>err("error").consumeOrThrow(value -> fail()));
-
-    assertEquals("Cannot consume Err value: error", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("consumeOrThrow should reject null consumer")
-  public void testConsumeOrThrowRejectsNullConsumer() {
-    var exception =
-        assertThrows(
-            NullPointerException.class, () -> Result.<Integer, String>ok(1).consumeOrThrow(null));
-
-    assertEquals("Consumer cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("consumeOrNothing should consume Ok value")
-  public void testConsumeOrNothingConsumesOk() {
-    AtomicInteger seen = new AtomicInteger();
-
-    Result.<Integer, String>ok(42).consumeOrNothing(seen::set);
-
-    assertEquals(42, seen.get());
-  }
-
-  @Test
-  @DisplayName("consumeOrNothing should do nothing for Err")
-  public void testConsumeOrNothingDoesNothingForErr() {
+  @DisplayName("ifOk should do nothing for Err")
+  public void testIfOkForErr() {
     AtomicBoolean called = new AtomicBoolean(false);
 
-    Result.<Integer, String>err("error").consumeOrNothing(value -> called.set(true));
+    Result.<Integer, String>err("error").ifOk(value -> called.set(true));
 
     assertFalse(called.get());
   }
 
   @Test
-  @DisplayName("consumeOrNothing should reject null consumer")
-  public void testConsumeOrNothingRejectsNullConsumer() {
+  @DisplayName("ifOk should reject null consumer")
+  public void testIfOkRejectsNullConsumer() {
     var exception =
         assertThrows(
-            NullPointerException.class,
-            () -> Result.<Integer, String>err("error").consumeOrNothing(null));
+            NullPointerException.class, () -> Result.<Integer, String>err("error").ifOk(null));
+
+    assertEquals("Consumer cannot be null", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("ifErr should consume Err value")
+  public void testIfErrConsumesErr() {
+    AtomicInteger seen = new AtomicInteger();
+
+    Result.<Integer, String>err("error").ifErr(error -> seen.set(error.length()));
+
+    assertEquals(5, seen.get());
+  }
+
+  @Test
+  @DisplayName("ifErr should do nothing for Ok")
+  public void testIfErrForOk() {
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result.<Integer, String>ok(42).ifErr(error -> called.set(true));
+
+    assertFalse(called.get());
+  }
+
+  @Test
+  @DisplayName("ifErr should reject null consumer")
+  public void testIfErrRejectsNullConsumer() {
+    var exception =
+        assertThrows(NullPointerException.class, () -> Result.<Integer, String>ok(42).ifErr(null));
 
     assertEquals("Consumer cannot be null", exception.getMessage());
   }
@@ -534,6 +626,35 @@ public class ResultTest {
             NullPointerException.class, () -> Result.<Integer, String>ok(42).unwrapOrElse(null));
 
     assertEquals("Fallback function cannot be null", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("unwrapOrElseThrow should return Ok value")
+  public void testUnwrapOrElseThrowReturnsOkValue() throws Exception {
+    assertEquals(42, Result.<Integer, Exception>ok(42).unwrapOrElseThrow(e -> new Exception("")));
+  }
+
+  @Test
+  @DisplayName("unwrapOrElseThrow should throw mapped exception for Err")
+  public void testUnwrapOrElseThrowThrowsMappedExceptionForErr() {
+    var exception =
+        assertThrows(
+            IOException.class,
+            () ->
+                Result.<Integer, String>err("file not found").unwrapOrElseThrow(IOException::new));
+
+    assertEquals("file not found", exception.getMessage());
+  }
+
+  @Test
+  @DisplayName("unwrapOrElseThrow should reject null exception mapper")
+  public void testUnwrapOrElseThrowRejectsNullExceptionMapper() {
+    var exception =
+        assertThrows(
+            NullPointerException.class,
+            () -> Result.<Integer, String>ok(42).unwrapOrElseThrow(null));
+
+    assertEquals("Exception mapper cannot be null", exception.getMessage());
   }
 
   @Test

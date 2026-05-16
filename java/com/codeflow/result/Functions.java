@@ -12,6 +12,12 @@ public final class Functions {
    */
   @FunctionalInterface
   public interface ThrowingSupplier<T> {
+    /**
+     * Gets a result, potentially throwing an exception.
+     *
+     * @return The supplied value.
+     * @throws Exception if the operation fails.
+     */
     T get() throws Exception;
   }
 
@@ -24,6 +30,13 @@ public final class Functions {
    */
   @FunctionalInterface
   public interface ThrowingFunction<T, U> {
+    /**
+     * Applies this function to the given value, potentially throwing an exception.
+     *
+     * @param value The input value.
+     * @return The function result.
+     * @throws Exception if the operation fails.
+     */
     U apply(T value) throws Exception;
   }
 }

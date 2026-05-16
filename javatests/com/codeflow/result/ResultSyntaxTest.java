@@ -117,23 +117,12 @@ class ResultSyntaxTest {
   }
 
   @Test
-  @DisplayName("consumeOrThrow should accept consumer of a supertype")
-  void consumeOrThrowShouldAcceptConsumerOfSupertype() {
+  @DisplayName("ifOk should accept consumer of a supertype")
+  void ifOkShouldAcceptConsumerOfSupertype() {
     List<Number> seen = new ArrayList<>();
     Consumer<Number> consumer = seen::add;
 
-    Result.<Integer, String>ok(42).consumeOrThrow(consumer);
-
-    assertEquals(List.of(42), seen);
-  }
-
-  @Test
-  @DisplayName("consumeOrNothing should accept consumer of a supertype")
-  void consumeOrNothingShouldAcceptConsumerOfSupertype() {
-    List<Number> seen = new ArrayList<>();
-    Consumer<Number> consumer = seen::add;
-
-    Result.<Integer, String>ok(42).consumeOrNothing(consumer);
+    Result.<Integer, String>ok(42).ifOk(consumer);
 
     assertEquals(List.of(42), seen);
   }

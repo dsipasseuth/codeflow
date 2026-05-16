@@ -38,7 +38,7 @@ class ResultStreamUtilsTest {
     var result = new ArrayList<Integer>();
     new Result.Ok<>(Stream.of("apple", "banana", "pineapple"))
         .then(map(String::length))
-        .consumeOrThrow(forEach(result::add));
+        .ifOk(forEach(result::add));
     assertEquals(result, List.of(5, 6, 9));
   }
 }
