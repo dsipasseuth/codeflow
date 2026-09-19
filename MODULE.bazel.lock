@@ -350,7 +350,7 @@
     "@@apple_rules_lint+//lint:extensions.bzl%linter": {
       "general": {
         "bzlTransitiveDigest": "g7izj5kLCmsajh8IospHh4ZQ35dyM0FIrA8D4HapAsM=",
-        "usagesDigest": "MD/tENc7ct5AQZrbADbDaSWu6SYB9Svwe02oLD7Sj6U=",
+        "usagesDigest": "7sjSYdBRtl6eDp/muckohJtGnqIY9qFnXmhVORJy81Q=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "apple_linters": {

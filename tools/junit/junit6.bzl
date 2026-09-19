@@ -4,6 +4,7 @@ load("@rules_jvm_external//:defs.bzl", "artifact")
 JUNIT_DEPS = [
     artifact("org.junit.jupiter:junit-jupiter-api"),
     artifact("org.junit.jupiter:junit-jupiter-params"),
+    artifact("org.assertj:assertj-core"),
 ]
 
 JUNIT_RUNTIME_DEPS = [

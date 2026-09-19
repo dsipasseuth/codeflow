@@ -58,7 +58,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return A new Result containing the mapped value or the original error.
    */
   default <U> Result<U> then(Function<? super T, ? extends U> fn) {
-    requireNonNull(fn, "Mapper function cannot be null");
     return switch (this) {
       case Ok(var v) -> ok(fn.apply(v));
       case Err<T> error -> error.into();
@@ -74,9 +73,8 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The Result produced by the mapper, or the original error.
    */
   default <U> Result<U> thenApply(Function<? super T, ? extends Result<? extends U>> fn) {
-    requireNonNull(fn, "Mapper function cannot be null");
     return switch (this) {
-      case Ok(var v) -> narrow(requireNonNull(fn.apply(v), "Mapper result cannot be null"));
+      case Ok(var v) -> narrow(fn.apply(v));
       case Err<T> error -> error.into();
     };
   }
@@ -90,15 +88,14 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * caused by returning {@code null} or another {@code Result}, are not mapped into {@link Err}.
    *
    * @param fn The operation to apply to the success value.
-   * @param onException The function used to transform the thrown exception into an error value.
+   * @param exceptionMapper The function used to transform the thrown exception into an error value.
    * @param <U> The new success type.
    * @return An {@link Ok} containing the mapped value, the original {@link Err}, or an {@link Err}
    *     containing the mapped exception.
    */
   default <U> Result<U> thenTrying(
-      ThrowingFunction<? super T, ? extends U> fn, Function<? super Exception, Cause> onException) {
-    requireNonNull(fn, "Mapper function cannot be null");
-    requireNonNull(onException, "Exception mapper cannot be null");
+      ThrowingFunction<? super T, ? extends U> fn,
+      Function<? super Exception, ? extends Cause> exceptionMapper) {
     return switch (this) {
       case Ok(var value) -> {
         U result;
@@ -108,7 +105,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
           Thread.currentThread().interrupt();
           throw new RuntimeException("Execution interrupted", e);
         } catch (Exception e) {
-          yield err(onException.apply(e));
+          yield err(exceptionMapper.apply(e));
         }
         yield ok(result);
       }
@@ -130,7 +127,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    *     containing the mapped exception.
    */
   default <U> Result<U> thenTrying(ThrowingFunction<? super T, ? extends U> fn) {
-    return thenTrying(fn, ExceptionCause::new);
+    return thenTrying(fn, DEFAULT_EXCEPTION_HANDLER);
   }
 
   /**
@@ -141,9 +138,8 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return A new Result containing the original success or the mapped error.
    */
   default Result<T> onError(Function<Cause, Result<T>> fn) {
-    requireNonNull(fn, "Error mapper function cannot be null");
     if (this instanceof Err(var reason)) {
-      return requireNonNull(fn.apply(reason), "Error mapper result cannot be null");
+      return fn.apply(reason);
     }
     return this;
   }
@@ -156,7 +152,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return This Result instance.
    */
   default Result<T> also(Consumer<? super T> consumer) {
-    requireNonNull(consumer, "Consumer cannot be null");
     if (this instanceof Ok(T value)) {
       consumer.accept(value);
     }
@@ -169,7 +164,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @param fn The action to perform on the success value.
    */
   default void ifOk(Consumer<? super T> fn) {
-    requireNonNull(fn, "Consumer cannot be null");
     if (this instanceof Ok(T value)) {
       fn.accept(value);
     }
@@ -181,7 +175,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @param fn The action to perform on the error reason.
    */
   default void ifErr(Consumer<? super Cause> fn) {
-    requireNonNull(fn, "Consumer cannot be null");
     if (this instanceof Err(Cause cause)) {
       fn.accept(cause);
     }
@@ -223,7 +216,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The success value or the computed fallback value.
    */
   default T unwrapOrElse(Function<Cause, ? extends T> fallbackFn) {
-    requireNonNull(fallbackFn, "Fallback function cannot be null");
     return switch (this) {
       case Ok(var value) -> value;
       case Err(var reason) -> fallbackFn.apply(reason);
@@ -238,7 +230,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The success value or the computed fallback value.
    */
   default T unwrapOrElse(Supplier<? extends T> fallbackFn) {
-    requireNonNull(fallbackFn, "Fallback function cannot be null");
     return switch (this) {
       case Ok(var value) -> value;
       case Err<?> _ -> fallbackFn.get();
@@ -255,7 +246,6 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @throws X if this Result is an {@link Err}.
    */
   default <X extends Throwable> T unwrapOrElseThrow(Function<Cause, ? extends X> fn) throws X {
-    requireNonNull(fn, "Cause mapper cannot be null");
     return switch (this) {
       case Ok(var value) -> value;
       case Err(var reason) -> throw fn.apply(reason);
@@ -271,7 +261,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    */
   @SuppressWarnings("unchecked")
   static <T> Result<T> narrow(Result<? extends T> result) {
-    return (Result<T>) requireNonNull(result, "Result cannot be null");
+    return (Result<T>) result;
   }
 
   /**
@@ -313,7 +303,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    *     exception.
    */
   static <T> Result<T> trying(ThrowingSupplier<? extends T> supplier) {
-    return trying(supplier, ExceptionCause::new);
+    return trying(supplier, DEFAULT_EXCEPTION_HANDLER);
   }
 
   /**
@@ -324,15 +314,14 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * caused by returning {@code null} or another {@code Result}, are not mapped into {@link Err}.
    *
    * @param supplier The operation to execute.
-   * @param onException The function used to transform the thrown exception into an error value.
+   * @param exceptionMapper The function used to transform the thrown exception into an error value.
    * @param <T> The success type.
    * @return An {@link Ok} containing the operation result, or an {@link Err} containing the mapped
    *     exception.
    */
   static <T> Result<T> trying(
-      ThrowingSupplier<? extends T> supplier, Function<? super Exception, Cause> onException) {
-    requireNonNull(supplier, "Supplier cannot be null");
-    requireNonNull(onException, "Exception mapper cannot be null");
+      ThrowingSupplier<? extends T> supplier,
+      Function<? super Exception, ? extends Cause> exceptionMapper) {
     T result;
     try {
       result = supplier.get();
@@ -340,8 +329,10 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
       Thread.currentThread().interrupt();
       throw new RuntimeException("Execution interrupted", e);
     } catch (Exception e) {
-      return err(onException.apply(e));
+      return err(exceptionMapper.apply(e));
     }
     return ok(result);
   }
+
+  Function<? super Exception, ? extends Cause> DEFAULT_EXCEPTION_HANDLER = ExceptionCause::new;
 }

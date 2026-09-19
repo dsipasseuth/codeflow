@@ -1,0 +1,20 @@
+load("//tools/junit:junit6.bzl", "junit6_test")
+
+[junit6_test(
+    name = f.removesuffix(".java"),
+    srcs = [
+        f,
+        "package-info.java",
+    ],
+    package = "com.codeflow.result.combiner",
+    deps = [
+        "//java/com/codeflow/result",
+        "//java/com/codeflow/result/combiner",
+        "@maven//:org_jspecify_jspecify",
+    ],
+) for f in glob(["*Test.java"])]
+
+test_suite(
+    name = "result_tests",
+    tests = [f.removesuffix(".java") for f in glob(["*Test.java"])],
+)

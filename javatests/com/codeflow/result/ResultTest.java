@@ -15,11 +15,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("Result Type Specification")
+@NullMarked
 public class ResultTest {
 
   static Cause fakeCause() {
@@ -144,29 +145,6 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("then should reject null mapper")
-  public void testThenRejectsNullMapper() {
-    var exception = assertThrows(NullPointerException.class, () -> ok("value").then(null));
-    assertEquals("Mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("then should reject null mapper even for Err")
-  public void testThenRejectsNullMapperForErr() {
-    var exception =
-        assertThrows(NullPointerException.class, () -> Result.<String>err(fakeCause()).then(null));
-    assertEquals("Mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("then should reject null mapped value")
-  public void testThenRejectsNullMappedValue() {
-    var exception = assertThrows(NullPointerException.class, () -> ok("value").then(_ -> null));
-
-    assertEquals("Ok value cannot be null", exception.getMessage());
-  }
-
-  @Test
   @DisplayName("then should reject mapper returning Result")
   public void testThenRejectsMapperReturningResult() {
     var exception =
@@ -225,33 +203,6 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("thenApply should reject null mapper")
-  public void testThenApplyRejectsNullMapper() {
-    var exception = assertThrows(NullPointerException.class, () -> ok("value").thenApply(null));
-
-    assertEquals("Mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("thenApply should reject null mapper even for Err")
-  public void testThenApplyRejectsNullMapperForErr() {
-    var exception =
-        assertThrows(
-            NullPointerException.class, () -> Result.<String>err(fakeCause()).thenApply(null));
-
-    assertEquals("Mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("thenApply should reject null mapper result")
-  public void testThenApplyRejectsNullMapperResult() {
-    var exception =
-        assertThrows(NullPointerException.class, () -> ok("value").thenApply(_ -> null));
-
-    assertEquals("Mapper result cannot be null", exception.getMessage());
-  }
-
-  @Test
   @DisplayName("thenTrying should reject mapper returning Result")
   public void testThenTryingRejectsMapperReturningResult() {
     var exception =
@@ -278,15 +229,6 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("thenTrying should reject null successful mapper value")
-  public void testThenTryingRejectsNullSuccessfulValue() {
-    var exception =
-        assertThrows(NullPointerException.class, () -> ok("value").thenTrying(ignored -> null));
-
-    assertEquals("Ok value cannot be null", exception.getMessage());
-  }
-
-  @Test
   @DisplayName("thenTrying should propagate original Err without invoking mapper")
   public void testThenTryingPropagatesOriginalErr() {
     AtomicBoolean called = new AtomicBoolean(false);
@@ -304,24 +246,6 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("thenTrying should reject null mapper")
-  public void testThenTryingRejectsNullMapper() {
-    var exception = assertThrows(NullPointerException.class, () -> ok("123").thenTrying(null));
-
-    assertEquals("Mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("thenTrying should reject null exception mapper")
-  public void testThenTryingRejectsNullExceptionMapper() {
-    var exception =
-        assertThrows(
-            NullPointerException.class, () -> ok("123").thenTrying(Integer::parseInt, null));
-
-    assertEquals("Exception mapper cannot be null", exception.getMessage());
-  }
-
-  @Test
   @DisplayName("onError should map Err value")
   public void testOnErrorMapsErr() {
     Result<String> result = Result.<String>err(fakeCause()).onError(_ -> ok("value"));
@@ -335,32 +259,6 @@ public class ResultTest {
     Result<String> result = ok("value").onError(_ -> ok("broken"));
 
     assertEquals(ok("value"), result);
-  }
-
-  @Test
-  @DisplayName("onError should reject null mapper")
-  public void testOnErrorRejectsNullMapper() {
-    var exception =
-        assertThrows(
-            NullPointerException.class, () -> Result.<String>err(fakeCause()).onError(null));
-    assertEquals("Error mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("onError should reject null mapper even for Ok")
-  public void testOnErrorRejectsNullMapperForOk() {
-    var exception = assertThrows(NullPointerException.class, () -> ok("value").onError(null));
-    assertEquals("Error mapper function cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("onError should reject null mapped value")
-  public void testOnErrorRejectsNullMappedValue() {
-    var exception =
-        assertThrows(
-            NullPointerException.class, () -> Result.<String>err(fakeCause()).onError(_ -> null));
-
-    assertEquals("Error mapper result cannot be null", exception.getMessage());
   }
 
   @Test
@@ -385,13 +283,6 @@ public class ResultTest {
 
     assertSame(result, returned);
     assertFalse(called.get());
-  }
-
-  @Test
-  @DisplayName("also should reject null consumer")
-  public void testAlsoRejectsNullConsumer() {
-    var exception = assertThrows(NullPointerException.class, () -> ok(1).also(null));
-    assertEquals("Consumer cannot be null", exception.getMessage());
   }
 
   @Test
@@ -439,16 +330,6 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("unwrapOrElse should reject null fallback")
-  public void testUnwrapOrElseRejectsNullFallback() {
-    var exception =
-        assertThrows(
-            NullPointerException.class, () -> ok(42).unwrapOrElse((Supplier<Integer>) null));
-
-    assertEquals("Fallback function cannot be null", exception.getMessage());
-  }
-
-  @Test
   @DisplayName("unwrapOrElseThrow should return Ok value")
   public void testUnwrapOrElseThrowReturnsOkValue() throws Exception {
     assertEquals(42, ok(42).unwrapOrElseThrow(_ -> new Exception("")));
@@ -472,14 +353,6 @@ public class ResultTest {
                         }));
 
     assertEquals("file not found", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("unwrapOrElseThrow should reject null exception mapper")
-  public void testUnwrapOrElseThrowRejectsNullExceptionMapper() {
-    var exception = assertThrows(NullPointerException.class, () -> ok(42).unwrapOrElseThrow(null));
-
-    assertEquals("Cause mapper cannot be null", exception.getMessage());
   }
 
   @Test
@@ -519,52 +392,5 @@ public class ResultTest {
             exception -> new FakeCause("io: " + exception.getMessage()));
 
     assertEquals(err(new FakeCause("io: disk failed")), result);
-  }
-
-  @Test
-  @DisplayName("trying should reject null supplier")
-  public void testTryingRejectsNullSupplier() {
-    var exception = assertThrows(NullPointerException.class, () -> Result.<Integer>trying(null));
-
-    assertEquals("Supplier cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("trying should reject null exception mapper")
-  public void testTryingRejectsNullExceptionMapper() {
-    var exception = assertThrows(NullPointerException.class, () -> trying(() -> 1, null));
-    assertEquals("Exception mapper cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("trying should reject null successful supplier value")
-  public void testTryingRejectsNullSuccessfulValue() {
-    var exception =
-        assertThrows(NullPointerException.class, () -> Result.<String>trying(() -> null));
-
-    assertEquals("Ok value cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("trying should reject null mapped error")
-  public void testTryingRejectsNullMappedError() {
-    var exception =
-        assertThrows(
-            NullPointerException.class,
-            () ->
-                Result.<Integer>trying(
-                    () -> {
-                      throw new IOException("disk failed");
-                    },
-                    ignored -> null));
-
-    assertEquals("Err reason cannot be null", exception.getMessage());
-  }
-
-  @Test
-  @DisplayName("narrow should reject null Result")
-  public void testNarrowRejectsNull() {
-    var exception = assertThrows(NullPointerException.class, () -> Result.<String>narrow(null));
-    assertEquals("Result cannot be null", exception.getMessage());
   }
 }
