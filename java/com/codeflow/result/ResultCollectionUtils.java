@@ -2,26 +2,23 @@ package com.codeflow.result;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import org.jspecify.annotations.NullMarked;
 
 /**
- * Utility transformations for Lists, designed for fluent piping. These methods transform a List
- * into another List or perform side effects.
+ * Utility transformations for Collections and Lists, optimized for fluent piping with {@link
+ * Result}. These methods transform lists into lists, sets, reductions, or perform side effects.
  */
-@NullMarked
 public final class ResultCollectionUtils {
 
   private ResultCollectionUtils() {}
 
   /**
-   * Lifts a mapping function to work on a {@link List}.
-   *
-   * <p>Usage: {@code result.then(map(String::length))}
+   * Lifts a mapping function to work on a {@link List}, supporting covariant inputs (PECS).
    *
    * @param fn The mapping function to apply to each list element.
    * @param <T> The input element type.
@@ -31,38 +28,53 @@ public final class ResultCollectionUtils {
   public static <T, R> Function<List<? extends T>, List<R>> map(
       Function<? super T, ? extends R> fn) {
     requireNonNull(fn, "Mapper function cannot be null");
-    // We cast the stream to Stream<R> or let the collector handle it
     return list -> list.stream().<R>map(fn).toList();
   }
 
   /**
-   * Lifts multi-mapping, or 1-to-N mapping, logic to work on a {@link List}.
-   *
-   * <p>Usage: {@code result.then(multiMap((value, out) -> out.accept(value.length())))}
+   * Lifts multi-mapping (1-to-N) logic to work on a {@link List}.
    *
    * @param fn The multi-mapping function that emits zero or more output values per input value.
    * @param <T> The input element type.
    * @param <R> The output element type.
-   * @return A function that transforms a list using {@link
-   *     java.util.stream.Stream#mapMulti(BiConsumer)}.
+   * @return A function that transforms a list using multi-mapping.
    */
-  public static <T, R> Function<List<T>, List<R>> multiMap(BiConsumer<? super T, Consumer<R>> fn) {
+  public static <T, R> Function<List<? extends T>, List<R>> multiMap(
+      BiConsumer<? super T, ? super Consumer<R>> fn) {
     requireNonNull(fn, "Mapper function cannot be null");
     return list -> list.stream().mapMulti(fn).toList();
   }
 
   /**
-   * Lifts a predicate to filter a {@link List}.
-   *
-   * <p>Usage: {@code result.then(filter("apple"::equals))}
+   * Lifts a predicate to filter a {@link List}, supporting covariant inputs.
    *
    * @param predicate The predicate used to retain list elements.
    * @param <T> The list element type.
    * @return A function that filters a list using the supplied predicate.
    */
-  public static <T> Function<List<T>, List<T>> filter(Predicate<? super T> predicate) {
+  public static <T> Function<List<? extends T>, List<T>> filter(Predicate<? super T> predicate) {
     requireNonNull(predicate, "Predicate cannot be null");
-    return list -> list.stream().filter(predicate).toList();
+    return list -> {
+      @SuppressWarnings("unchecked")
+      List<T> casted = (List<T>) list;
+      return casted.stream().filter(predicate).toList();
+    };
+  }
+
+  /**
+   * Sorts the elements of a list using the specified comparator.
+   *
+   * @param comparator The comparator used for sorting.
+   * @param <T> The list element type.
+   * @return A function that sorts the list.
+   */
+  public static <T> Function<List<? extends T>, List<T>> sorted(Comparator<? super T> comparator) {
+    requireNonNull(comparator, "Comparator cannot be null");
+    return list -> {
+      @SuppressWarnings("unchecked")
+      List<T> casted = (List<T>) list;
+      return casted.stream().sorted(comparator).toList();
+    };
   }
 
   /**
@@ -72,7 +84,7 @@ public final class ResultCollectionUtils {
    * @param <T> The list element type.
    * @return A consumer that applies the supplied action to every list element.
    */
-  public static <T> Consumer<List<T>> forEach(Consumer<? super T> consumer) {
+  public static <T> Consumer<List<? extends T>> forEach(Consumer<? super T> consumer) {
     requireNonNull(consumer, "Consumer cannot be null");
     return list -> list.forEach(consumer);
   }
