@@ -2,7 +2,10 @@ load("//tools/junit:junit6.bzl", "junit6_test")
 
 [junit6_test(
     name = f.removesuffix(".java"),
-    srcs = [f],
+    srcs = [
+        f,
+        "FakeCause.java",
+    ],
     package = "com.codeflow.result",
     deps = [
         "//java/com/codeflow/result",

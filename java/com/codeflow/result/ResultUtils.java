@@ -10,7 +10,7 @@ public final class ResultUtils {
    * @param result The result to inspect.
    * @return {@code true} if the result represents success; otherwise {@code false}.
    */
-  public static boolean isOk(Result<?, ?> result) {
+  public static boolean isOk(Result<?> result) {
     return result instanceof Result.Ok;
   }
 
@@ -20,7 +20,7 @@ public final class ResultUtils {
    * @param result The result to inspect.
    * @return {@code true} if the result represents failure; otherwise {@code false}.
    */
-  public static boolean isErr(Result<?, ?> result) {
+  public static boolean isErr(Result<?> result) {
     return result instanceof Result.Err;
   }
 }

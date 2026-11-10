@@ -1,8 +1,10 @@
 package com.codeflow.result;
 
+import static com.codeflow.result.Result.err;
+import static com.codeflow.result.Result.narrow;
+import static com.codeflow.result.Result.ok;
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,16 +21,16 @@ class ResultSyntaxTest {
   void thenShouldRespectPecs() {
     Function<Number, Integer> numberToInteger = Number::intValue;
 
-    Result<Number, String> result = Result.<Integer, String>ok(42).then(numberToInteger);
+    Result<Number> result = ok(42).then(numberToInteger);
 
-    assertEquals(new Result.Ok<>(42), result);
+    assertEquals(ok(42), result);
   }
 
   @Test
   @DisplayName("then should support fluent widening from concrete values to interface types")
   void thenShouldSupportFluentWideningToInterfaceTypes() {
-    Result<List<String>, String> result =
-        Result.<String, String>ok("apple")
+    Result<List<String>> result =
+        ok("apple")
             .then(
                 value -> {
                   ArrayList<String> values = new ArrayList<>();
@@ -36,72 +38,78 @@ class ResultSyntaxTest {
                   return values;
                 });
 
-    assertEquals(new Result.Ok<>(List.of("apple")), result);
+    assertEquals(ok(List.of("apple")), result);
   }
 
   @Test
   @DisplayName("thenApply should accept a mapper consuming a supertype")
   void thenApplyShouldAcceptMapperConsumingSupertype() {
-    Function<CharSequence, Result<Integer, String>> length = value -> Result.ok(value.length());
+    Function<CharSequence, Result<Integer>> length = value -> ok(value.length());
 
-    Result<Integer, String> result = Result.<String, String>ok("apple").thenApply(length);
+    Result<Integer> result = ok("apple").thenApply(length);
 
-    assertEquals(new Result.Ok<>(5), result);
+    assertEquals(ok(5), result);
   }
 
   @Test
   @DisplayName("thenApply should support covariant success results")
   void thenApplyShouldSupportCovariantSuccessResults() {
-    Result<List<String>, RuntimeException> result =
-        Result.<String, RuntimeException>ok("apple")
+    Result<List<String>> result =
+        ok("apple")
             .thenApply(
                 value -> {
                   ArrayList<String> values = new ArrayList<>();
                   values.add(value);
-                  return Result.<ArrayList<String>, IllegalArgumentException>ok(values);
+                  return ok(values);
                 });
 
-    assertEquals(new Result.Ok<>(List.of("apple")), result);
-  }
-
-  @Test
-  @DisplayName("thenApply should support covariant Err results")
-  void thenApplyShouldSupportCovariantErrResults() {
-    Result<List<String>, RuntimeException> result =
-        Result.<String, RuntimeException>ok("apple")
-            .thenApply(
-                value ->
-                    Result.<ArrayList<String>, IllegalArgumentException>err(
-                        new IllegalArgumentException("bad value")));
-
-    assertInstanceOf(Result.Err.class, result);
-    if (result instanceof Result.Err(var error)) {
-      assertEquals("bad value", error.getMessage());
-    }
+    assertEquals(ok(List.of("apple")), result);
   }
 
   @Test
   @DisplayName("thenTrying should accept throwing mapper consuming supertype and producing subtype")
   void thenTryingShouldRespectPecs() {
-    Result<Number, String> result =
-        Result.<Integer, String>ok(42).thenTrying(Number::longValue, Exception::getMessage);
+    Result<Number> result = ok(42).thenTrying(Number::longValue);
+    assertEquals(ok(42L), result);
+  }
 
-    assertEquals(new Result.Ok<>(42L), result);
+  @Test
+  @DisplayName("thenTrying with exception mapper should accept supertype consumers for exception")
+  void thenTryingExceptionMapperShouldRespectPecs() {
+    Result<Integer> result =
+        ok("abc")
+            .thenTrying(
+                Integer::parseInt,
+                (Exception ex) -> new FakeCause("caught: " + ex.getClass().getSimpleName()));
+
+    assertEquals(err(new FakeCause("caught: NumberFormatException")), result);
   }
 
   @Test
   @DisplayName("trying should accept supplier producing subtype of requested success type")
   void tryingShouldAcceptSupplierProducingSubtype() {
-    Result<List<String>, String> result =
+    Result<List<String>> result =
         Result.trying(
             () -> {
               ArrayList<String> values = new ArrayList<>();
               values.add("apple");
               return values;
-            },
-            Exception::getMessage);
+            });
 
-    assertEquals(new Result.Ok<>(List.of("apple")), result);
+    assertEquals(ok(List.of("apple")), result);
+  }
+
+  @Test
+  @DisplayName("trying with exception mapper should accept supertype exception consumers")
+  void tryingExceptionMapperShouldRespectPecs() {
+    Result<Integer> result =
+        Result.trying(
+            () -> {
+              throw new IOException("fail");
+            },
+            (Exception ex) -> new FakeCause(ex.getMessage()));
+
+    assertEquals(err(new FakeCause("fail")), result);
   }
 
   @Test
@@ -110,9 +118,9 @@ class ResultSyntaxTest {
     List<Number> seen = new ArrayList<>();
     Consumer<Number> consumer = seen::add;
 
-    Result<Integer, String> result = Result.<Integer, String>ok(42).also(consumer);
+    Result<Integer> result = ok(42).also(consumer);
 
-    assertEquals(new Result.Ok<>(42), result);
+    assertEquals(ok(42), result);
     assertEquals(List.of(42), seen);
   }
 
@@ -122,49 +130,57 @@ class ResultSyntaxTest {
     List<Number> seen = new ArrayList<>();
     Consumer<Number> consumer = seen::add;
 
-    Result.<Integer, String>ok(42).ifOk(consumer);
+    ok(42).ifOk(consumer);
 
     assertEquals(List.of(42), seen);
+  }
+
+  @Test
+  @DisplayName("ifErr should accept consumer of a supertype cause")
+  void ifErrShouldAcceptConsumerOfSupertype() {
+    List<Object> seen = new ArrayList<>();
+    Consumer<Object> consumer = seen::add;
+
+    Result.<Integer>err(new FakeCause("error")).ifErr(consumer);
+
+    assertEquals(1, seen.size());
   }
 
   @Test
   @DisplayName(
       "unwrapOrElse should accept fallback consuming supertype error and producing subtype value")
   void unwrapOrElseShouldRespectPecs() {
-    Function<Exception, Integer> fallback = exception -> exception.getMessage().length();
+    Function<Cause, Integer> fallback = __ -> 1;
 
-    Number value =
-        Result.<Number, IOException>err(new FileNotFoundException("missing"))
-            .unwrapOrElse(fallback);
+    Number value = Result.<Number>err(new FakeCause("test")).unwrapOrElse(fallback);
 
-    assertEquals(7, value);
+    assertEquals(1, value);
   }
 
   @Test
   @DisplayName("narrow should allow assigning wildcard Result to concrete Result type")
   void narrowShouldSupportWildcardResultAssignment() {
-    Result<? extends ArrayList<String>, ? extends IllegalArgumentException> wildcard =
-        Result.ok(new ArrayList<>(List.of("apple")));
+    Result<? extends ArrayList<String>> wildcard = ok(new ArrayList<>(List.of("apple")));
 
-    Result<List<String>, RuntimeException> result = Result.narrow(wildcard);
+    Result<List<String>> result = narrow(wildcard);
 
-    assertEquals(new Result.Ok<>(List.of("apple")), result);
+    assertEquals(ok(List.of("apple")), result);
   }
 
   @Test
   @DisplayName("Result should support fluent syntax with method references")
   void resultShouldSupportFluentSyntaxWithMethodReferences() {
-    Result<List<Integer>, String> result =
-        Result.<List<String>, String>ok(List.of("apple", "banana", "pineapple"))
+    Result<List<Integer>> result =
+        ok(List.of("apple", "banana", "pineapple"))
             .then(values -> values.stream().map(String::length).toList());
 
-    assertEquals(new Result.Ok<>(List.of(5, 6, 9)), result);
+    assertEquals(ok(List.of(5, 6, 9)), result);
   }
 
   @Test
   @DisplayName("Result should support exhaustive pattern matching syntax")
   void resultShouldSupportExhaustivePatternMatchingSyntax() {
-    Result<Integer, String> result = Result.ok(42);
+    Result<Integer> result = ok(42);
 
     String message =
         switch (result) {
