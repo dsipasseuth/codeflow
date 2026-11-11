@@ -4,12 +4,12 @@ module(
     bazel_compatibility = [">=9.1.0"],
 )
 
-bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "rules_java", version = "9.6.1")
-bazel_dep(name = "rules_jvm_external", version = "7.0")
-bazel_dep(name = "contrib_rules_jvm", version = "0.31.1")
-bazel_dep(name = "aspect_rules_lint", version = "2.5.2")
-bazel_dep(name = "buildifier_prebuilt", version = "7.3.1")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_java", version = "9.9.0")
+bazel_dep(name = "rules_jvm_external", version = "7.2")
+bazel_dep(name = "contrib_rules_jvm", version = "0.34.0")
+bazel_dep(name = "aspect_rules_lint", version = "2.9.1")
+bazel_dep(name = "buildifier_prebuilt", version = "10.1.0")
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
