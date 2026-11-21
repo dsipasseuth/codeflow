@@ -55,6 +55,7 @@ public record Combiner<T>(Result<T> initialValue) {
    * @return a two-result combiner
    */
   public <O> Combiner2<T, O> andThen(Supplier<? extends O> fn) {
+    requireNonNull(fn);
     return switch (initialValue) {
       case Result.Ok<T> value -> new Combiner2<>(value, ok(fn.get()));
       case Result.Err<T> err -> new Combiner2<>(err, err.into());
@@ -84,6 +85,7 @@ public record Combiner<T>(Result<T> initialValue) {
    * @return a two-result combiner
    */
   public <O> Combiner2<T, O> andThenApply(Supplier<? extends Result<? extends O>> fn) {
+    requireNonNull(fn);
     return switch (initialValue) {
       case Result.Ok<T> value -> new Combiner2<>(value, narrow(fn.get()));
       case Result.Err<T> err -> new Combiner2<>(err, err.into());
@@ -115,6 +117,7 @@ public record Combiner<T>(Result<T> initialValue) {
    * @return a two-result combiner
    */
   public <O> Combiner2<T, O> andThenTrying(ThrowingSupplier<? extends O> fn) {
+    requireNonNull(fn);
     return switch (initialValue) {
       case Result.Ok<T> value -> new Combiner2<>(value, trying(fn));
       case Result.Err<T> err -> new Combiner2<>(err, err.into());
@@ -135,6 +138,8 @@ public record Combiner<T>(Result<T> initialValue) {
   public <O> Combiner2<T, O> andThenTrying(
       ThrowingSupplier<? extends O> fn,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(fn);
+    requireNonNull(exceptionMapper);
     return switch (initialValue) {
       case Result.Ok<T> value -> new Combiner2<>(value, trying(fn, exceptionMapper));
       case Result.Err<T> err -> new Combiner2<>(err, err.into());
@@ -169,6 +174,8 @@ public record Combiner<T>(Result<T> initialValue) {
   public <O> Combiner2<T, O> andThenTrying(
       ThrowingFunction<T, ? extends O> fn,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(fn);
+    requireNonNull(exceptionMapper);
     return switch (initialValue) {
       case Result.Ok<T> value -> new Combiner2<>(value, value.thenTrying(fn, exceptionMapper));
       case Result.Err<T> err -> new Combiner2<>(err, err.into());

@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeflow.result.ExceptionCause;
+import com.codeflow.result.Functions.ThrowingBiFunction;
+import com.codeflow.result.Functions.ThrowingSupplier;
 import com.codeflow.result.Result;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class Combiner2Test {
@@ -40,6 +44,37 @@ class Combiner2Test {
   }
 
   @Test
+  void shouldShortCircuitAndThenSupplierWhenAnyErr() {
+    boolean[] invoked = {false};
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<String, Integer> combiner = new Combiner2<>(errResult, ok(1));
+
+    Combiner3<String, Integer, String> result =
+        combiner.andThen(
+            () -> {
+              invoked[0] = true;
+              return "third";
+            });
+
+    assertThat(result.result1()).isEqualTo(errResult);
+    assertThat(result.result2()).isEqualTo(ok(1));
+    assertThat(result.result3()).isInstanceOf(Result.Err.class);
+    assertThat(invoked[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullSupplierInAndThenConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<String, Integer> okCombiner = new Combiner2<>(ok("a"), ok(1));
+    Combiner2<String, Integer> errCombiner = new Combiner2<>(errResult, ok(1));
+
+    assertThatThrownBy(() -> okCombiner.andThen((Supplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThen((Supplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
   void shouldExecuteAndThenBiFunctionWhenBothOk() {
     Combiner2<String, Integer> combiner = new Combiner2<>(ok("hello"), ok(3));
     Combiner3<String, Integer, String> result = combiner.andThen(String::repeat);
@@ -49,15 +84,19 @@ class Combiner2Test {
     assertThat(result.result3()).isEqualTo(ok("hellohellohello"));
   }
 
-  // --- andThenApply Tests ---
-
   @Test
-  void shouldExecuteAndThenApplySupplierWhenBothOk() {
-    Combiner2<String, Integer> combiner = new Combiner2<>(ok("a"), ok(1));
-    Combiner3<String, Integer, String> result = combiner.andThenApply(() -> ok("applied"));
+  void shouldRejectNullBiFunctionInAndThenConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<String, Integer> okCombiner = new Combiner2<>(ok("a"), ok(1));
+    Combiner2<String, Integer> errCombiner = new Combiner2<>(errResult, ok(1));
 
-    assertThat(result.result3()).isEqualTo(ok("applied"));
+    assertThatThrownBy(() -> okCombiner.andThen((BiFunction<String, Integer, String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThen((BiFunction<String, Integer, String>) null))
+        .isInstanceOf(NullPointerException.class);
   }
+
+  // --- andThenApply Tests ---
 
   @Test
   void shouldExecuteAndThenApplyBiFunctionWhenBothOk() {
@@ -65,6 +104,20 @@ class Combiner2Test {
     Combiner3<Integer, Integer, Integer> result = combiner.andThenApply((a, b) -> ok(a * b));
 
     assertThat(result.result3()).isEqualTo(ok(6));
+  }
+
+  @Test
+  void shouldRejectNullBiFunctionInAndThenApplyConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<String, Integer> okCombiner = new Combiner2<>(ok("a"), ok(1));
+    Combiner2<String, Integer> errCombiner = new Combiner2<>(errResult, ok(1));
+
+    assertThatThrownBy(
+            () -> okCombiner.andThenApply((BiFunction<String, Integer, Result<String>>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () -> errCombiner.andThenApply((BiFunction<String, Integer, Result<String>>) null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- andThenTrying Tests ---
@@ -103,6 +156,22 @@ class Combiner2Test {
   }
 
   @Test
+  void shouldRejectNullArgumentsInAndThenTryingSupplierConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<String, Integer> okCombiner = new Combiner2<>(ok("a"), ok(1));
+    Combiner2<String, Integer> errCombiner = new Combiner2<>(errResult, ok(1));
+
+    assertThatThrownBy(() -> okCombiner.andThenTrying((ThrowingSupplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying((ThrowingSupplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.andThenTrying(() -> "ok", null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying(() -> "ok", null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
   void shouldExecuteAndThenTryingBiFunctionSuccess() {
     Combiner2<Integer, Integer> combiner = new Combiner2<>(ok(10), ok(2));
     Combiner3<Integer, Integer, Integer> result = combiner.andThenTrying((a, b) -> a / b);
@@ -119,6 +188,24 @@ class Combiner2Test {
             ex -> new ExceptionCause(new RuntimeException("Math error: " + ex.getMessage())));
 
     assertThat(result.result3()).isInstanceOf(Result.Err.class);
+  }
+
+  @Test
+  void shouldRejectNullArgumentsInAndThenTryingBiFunctionConsistentlyOnOkAndErr() {
+    Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<Integer, Integer> okCombiner = new Combiner2<>(ok(10), ok(2));
+    Combiner2<Integer, Integer> errCombiner = new Combiner2<>(errResult, ok(2));
+
+    assertThatThrownBy(
+            () -> okCombiner.andThenTrying((ThrowingBiFunction<Integer, Integer, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () -> errCombiner.andThenTrying((ThrowingBiFunction<Integer, Integer, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.andThenTrying(Integer::sum, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying(Integer::sum, null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- also (Side-effect) Tests ---
@@ -146,7 +233,7 @@ class Combiner2Test {
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner2<String, Integer> combiner = new Combiner2<>(errResult, ok(42));
 
-    combiner.also((s, i) -> executed[0] = true);
+    combiner.also((_, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
@@ -157,9 +244,19 @@ class Combiner2Test {
     Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner2<String, Integer> combiner = new Combiner2<>(ok("foo"), errResult);
 
-    combiner.also((s, i) -> executed[0] = true);
+    combiner.also((_, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullConsumerInAlsoConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner2<String, Integer> okCombiner = new Combiner2<>(ok("foo"), ok(42));
+    Combiner2<String, Integer> errCombiner = new Combiner2<>(errResult, ok(42));
+
+    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---
@@ -170,6 +267,15 @@ class Combiner2Test {
     Result<Integer> result = combiner.then(Integer::sum);
 
     assertThat(result).isEqualTo(ok(7));
+  }
+
+  @Test
+  void shouldPropagateFirstErrInThen() {
+    Result<Integer> firstErr = err(new ExceptionCause(new RuntimeException("first")));
+    Result<Integer> secondErr = err(new ExceptionCause(new RuntimeException("second")));
+    Combiner2<Integer, Integer> combiner = new Combiner2<>(firstErr, secondErr);
+
+    assertThat(combiner.then(Integer::sum)).isEqualTo(firstErr);
   }
 
   @Test
@@ -195,7 +301,7 @@ class Combiner2Test {
     Result<Integer> result =
         combiner.thenTrying(
             (a, b) -> Integer.parseInt(a) + Integer.parseInt(b),
-            ex -> new ExceptionCause(new RuntimeException("Parse failed")));
+            _ -> new ExceptionCause(new RuntimeException("Parse failed")));
 
     assertThat(result).isInstanceOf(Result.Err.class);
   }

@@ -68,7 +68,7 @@ public record Combiner6<T1, T2, T3, T4, T5, T6>(
    */
   public Combiner6<T1, T2, T3, T4, T5, T6> also(
       Consumer6<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6> consumer) {
-    requireNonNull(consumer, "Consumer cannot be null");
+    requireNonNull(consumer);
     if (result1 instanceof Result.Ok(var v1)
         && result2 instanceof Result.Ok(var v2)
         && result3 instanceof Result.Ok(var v3)

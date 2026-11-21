@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeflow.result.ExceptionCause;
+import com.codeflow.result.Functions.Function5;
+import com.codeflow.result.Functions.ThrowingFunction5;
+import com.codeflow.result.Functions.ThrowingSupplier;
 import com.codeflow.result.Result;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class Combiner5Test {
@@ -43,7 +47,40 @@ class Combiner5Test {
   }
 
   @Test
-  void shouldExecuteAndThenPentaFunctionWhenAllOk() {
+  void shouldShortCircuitAndThenSupplierWhenAnyErr() {
+    boolean[] invoked = {false};
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<String, Integer, Boolean, Double, Character> combiner =
+        new Combiner5<>(errResult, ok(1), ok(true), ok(2.0), ok('x'));
+
+    Combiner6<String, Integer, Boolean, Double, Character, String> result =
+        combiner.andThen(
+            () -> {
+              invoked[0] = true;
+              return "sixth";
+            });
+
+    assertThat(result.result1()).isEqualTo(errResult);
+    assertThat(result.result6()).isInstanceOf(Result.Err.class);
+    assertThat(invoked[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullSupplierInAndThenConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<String, Integer, Boolean, Double, Character> okCombiner =
+        new Combiner5<>(ok("a"), ok(1), ok(true), ok(2.0), ok('x'));
+    Combiner5<String, Integer, Boolean, Double, Character> errCombiner =
+        new Combiner5<>(errResult, ok(1), ok(true), ok(2.0), ok('x'));
+
+    assertThatThrownBy(() -> okCombiner.andThen((Supplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThen((Supplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldExecuteAndThenFunction5WhenAllOk() {
     Combiner5<String, String, String, String, String> combiner =
         new Combiner5<>(ok("a"), ok("b"), ok("c"), ok("d"), ok("e"));
     Combiner6<String, String, String, String, String, String> result =
@@ -52,26 +89,56 @@ class Combiner5Test {
     assertThat(result.result6()).isEqualTo(ok("abcde"));
   }
 
+  @Test
+  void shouldRejectNullFunction5InAndThenConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<String, String, String, String, String> okCombiner =
+        new Combiner5<>(ok("a"), ok("b"), ok("c"), ok("d"), ok("e"));
+    Combiner5<String, String, String, String, String> errCombiner =
+        new Combiner5<>(errResult, ok("b"), ok("c"), ok("d"), ok("e"));
+
+    assertThatThrownBy(
+            () ->
+                okCombiner.andThen(
+                    (Function5<String, String, String, String, String, String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () ->
+                errCombiner.andThen(
+                    (Function5<String, String, String, String, String, String>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
   // --- andThenApply Tests ---
 
   @Test
-  void shouldExecuteAndThenApplySupplierWhenAllOk() {
-    Combiner5<String, Integer, Boolean, Double, Character> combiner =
-        new Combiner5<>(ok("a"), ok(1), ok(true), ok(2.0), ok('x'));
-    Combiner6<String, Integer, Boolean, Double, Character, String> result =
-        combiner.andThenApply(() -> ok("applied"));
-
-    assertThat(result.result6()).isEqualTo(ok("applied"));
-  }
-
-  @Test
-  void shouldExecuteAndThenApplyPentaFunctionWhenAllOk() {
+  void shouldExecuteAndThenApplyFunction5WhenAllOk() {
     Combiner5<Integer, Integer, Integer, Integer, Integer> combiner =
         new Combiner5<>(ok(1), ok(2), ok(3), ok(4), ok(5));
     Combiner6<Integer, Integer, Integer, Integer, Integer, Integer> result =
         combiner.andThenApply((a, b, c, d, e) -> ok(a + b + c + d + e));
 
     assertThat(result.result6()).isEqualTo(ok(15));
+  }
+
+  @Test
+  void shouldRejectNullFunction5InAndThenApplyConsistentlyOnOkAndErr() {
+    Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<Integer, Integer, Integer, Integer, Integer> okCombiner =
+        new Combiner5<>(ok(1), ok(2), ok(3), ok(4), ok(5));
+    Combiner5<Integer, Integer, Integer, Integer, Integer> errCombiner =
+        new Combiner5<>(errResult, ok(2), ok(3), ok(4), ok(5));
+
+    assertThatThrownBy(
+            () ->
+                okCombiner.andThenApply(
+                    (Function5<Integer, Integer, Integer, Integer, Integer, Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () ->
+                errCombiner.andThenApply(
+                    (Function5<Integer, Integer, Integer, Integer, Integer, Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- andThenTrying Tests ---
@@ -87,13 +154,55 @@ class Combiner5Test {
   }
 
   @Test
-  void shouldExecuteAndThenTryingPentaFunctionSuccess() {
+  void shouldRejectNullArgumentsInAndThenTryingSupplierConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<String, Integer, Boolean, Double, Character> okCombiner =
+        new Combiner5<>(ok("a"), ok(1), ok(true), ok(2.0), ok('x'));
+    Combiner5<String, Integer, Boolean, Double, Character> errCombiner =
+        new Combiner5<>(errResult, ok(1), ok(true), ok(2.0), ok('x'));
+
+    assertThatThrownBy(() -> okCombiner.andThenTrying((ThrowingSupplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying((ThrowingSupplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.andThenTrying(() -> "ok", null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying(() -> "ok", null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldExecuteAndThenTryingFunction5Success() {
     Combiner5<Integer, Integer, Integer, Integer, Integer> combiner =
         new Combiner5<>(ok(10), ok(2), ok(1), ok(1), ok(1));
     Combiner6<Integer, Integer, Integer, Integer, Integer, Integer> result =
         combiner.andThenTrying((a, b, c, d, e) -> (a / b) + c + d + e);
 
     assertThat(result.result6()).isEqualTo(ok(8));
+  }
+
+  @Test
+  void shouldRejectNullArgumentsInAndThenTryingFunction5ConsistentlyOnOkAndErr() {
+    Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<Integer, Integer, Integer, Integer, Integer> okCombiner =
+        new Combiner5<>(ok(10), ok(2), ok(1), ok(1), ok(1));
+    Combiner5<Integer, Integer, Integer, Integer, Integer> errCombiner =
+        new Combiner5<>(errResult, ok(2), ok(1), ok(1), ok(1));
+
+    assertThatThrownBy(
+            () ->
+                okCombiner.andThenTrying(
+                    (ThrowingFunction5<Integer, Integer, Integer, Integer, Integer, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () ->
+                errCombiner.andThenTrying(
+                    (ThrowingFunction5<Integer, Integer, Integer, Integer, Integer, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.andThenTrying((a, b, c, d, e) -> a + b + c + d + e, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying((a, b, c, d, e) -> a + b + c + d + e, null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- also Tests ---
@@ -106,7 +215,7 @@ class Combiner5Test {
 
     Combiner5<String, Integer, Boolean, Double, Character> returned =
         combiner.also(
-            (s, i, b, d, c) -> {
+            (s, i, _, _, c) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
               assertThat(i).isEqualTo(42);
@@ -124,9 +233,21 @@ class Combiner5Test {
     Combiner5<String, Integer, Boolean, Double, Character> combiner =
         new Combiner5<>(errResult, ok(42), ok(true), ok(3.14), ok('z'));
 
-    combiner.also((s, i, b, d, c) -> executed[0] = true);
+    combiner.also((_, _, _, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullConsumer5InAlsoConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner5<String, Integer, Boolean, Double, Character> okCombiner =
+        new Combiner5<>(ok("foo"), ok(42), ok(true), ok(3.14), ok('z'));
+    Combiner5<String, Integer, Boolean, Double, Character> errCombiner =
+        new Combiner5<>(errResult, ok(42), ok(true), ok(3.14), ok('z'));
+
+    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---
@@ -138,6 +259,16 @@ class Combiner5Test {
     Result<Integer> result = combiner.then((a, b, c, d, e) -> a + b + c + d + e);
 
     assertThat(result).isEqualTo(ok(15));
+  }
+
+  @Test
+  void shouldPropagateFirstErrInThen() {
+    Result<Integer> firstErr = err(new ExceptionCause(new RuntimeException("first")));
+    Result<Integer> secondErr = err(new ExceptionCause(new RuntimeException("second")));
+    Combiner5<Integer, Integer, Integer, Integer, Integer> combiner =
+        new Combiner5<>(firstErr, secondErr, ok(3), ok(4), ok(5));
+
+    assertThat(combiner.then((a, b, c, d, e) -> a + b + c + d + e)).isEqualTo(firstErr);
   }
 
   @Test

@@ -51,6 +51,7 @@ public record Combiner2<T1, T2>(Result<T1> result1, Result<T2> result2) {
    * @return a combiner containing the original two results and the produced result
    */
   public <T3> Combiner3<T1, T2, T3> andThen(Supplier<? extends T3> fn) {
+    requireNonNull(fn);
     return new Combiner3<>(result1, result2, then((_, _) -> fn.get()));
   }
 
@@ -75,6 +76,7 @@ public record Combiner2<T1, T2>(Result<T1> result1, Result<T2> result2) {
    * @return a combiner containing the original two results and the supplied result
    */
   public <T3> Combiner3<T1, T2, T3> andThenApply(Supplier<Result<? extends T3>> fn) {
+    requireNonNull(fn);
     return new Combiner3<>(result1, result2, thenApply((_, _) -> narrow(fn.get())));
   }
 
@@ -100,6 +102,7 @@ public record Combiner2<T1, T2>(Result<T1> result1, Result<T2> result2) {
    * @return a combiner containing the original two results and the produced result
    */
   public <T3> Combiner3<T1, T2, T3> andThenTrying(ThrowingSupplier<? extends T3> fn) {
+    requireNonNull(fn);
     return new Combiner3<>(result1, result2, thenTrying((_, _) -> fn.get()));
   }
 
@@ -114,6 +117,8 @@ public record Combiner2<T1, T2>(Result<T1> result1, Result<T2> result2) {
   public <T3> Combiner3<T1, T2, T3> andThenTrying(
       ThrowingSupplier<? extends T3> fn,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(fn);
+    requireNonNull(exceptionMapper);
     return new Combiner3<>(result1, result2, thenTrying((_, _) -> fn.get(), exceptionMapper));
   }
 
@@ -155,6 +160,7 @@ public record Combiner2<T1, T2>(Result<T1> result1, Result<T2> result2) {
    * @return this combiner
    */
   public Combiner2<T1, T2> also(BiConsumer<? super T1, ? super T2> fn) {
+    requireNonNull(fn);
     if (result1 instanceof Result.Ok(var v1) && result2 instanceof Result.Ok(var v2)) {
       fn.accept(v1, v2);
     }

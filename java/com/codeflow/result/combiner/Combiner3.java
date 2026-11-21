@@ -52,6 +52,7 @@ public record Combiner3<T1, T2, T3>(Result<T1> result1, Result<T2> result2, Resu
    * @return a combiner containing the original three results and the produced result
    */
   public <T4> Combiner4<T1, T2, T3, T4> andThen(Supplier<? extends T4> fn) {
+    requireNonNull(fn);
     return new Combiner4<>(result1, result2, result3, then((_, _, _) -> fn.get()));
   }
 
@@ -75,6 +76,7 @@ public record Combiner3<T1, T2, T3>(Result<T1> result1, Result<T2> result2, Resu
    * @return a combiner containing the original three results and the supplied result
    */
   public <T4> Combiner4<T1, T2, T3, T4> andThenApply(Supplier<Result<? extends T4>> fn) {
+    requireNonNull(fn);
     return new Combiner4<>(result1, result2, result3, thenApply((_, _, _) -> narrow(fn.get())));
   }
 
@@ -101,6 +103,7 @@ public record Combiner3<T1, T2, T3>(Result<T1> result1, Result<T2> result2, Resu
    * @return a combiner containing the original three results and the produced result
    */
   public <T4> Combiner4<T1, T2, T3, T4> andThenTrying(ThrowingSupplier<? extends T4> fn) {
+    requireNonNull(fn);
     return new Combiner4<>(result1, result2, result3, thenTrying((_, _, _) -> fn.get()));
   }
 
@@ -116,6 +119,8 @@ public record Combiner3<T1, T2, T3>(Result<T1> result1, Result<T2> result2, Resu
   public <T4> Combiner4<T1, T2, T3, T4> andThenTrying(
       ThrowingSupplier<? extends T4> fn,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(fn);
+    requireNonNull(exceptionMapper);
     return new Combiner4<>(
         result1, result2, result3, thenTrying((_, _, _) -> fn.get(), exceptionMapper));
   }
@@ -160,6 +165,7 @@ public record Combiner3<T1, T2, T3>(Result<T1> result1, Result<T2> result2, Resu
    * @return this combiner
    */
   public Combiner3<T1, T2, T3> also(Consumer3<? super T1, ? super T2, ? super T3> fn) {
+    requireNonNull(fn);
     if (result1 instanceof Result.Ok(var v1)
         && result2 instanceof Result.Ok(var v2)
         && result3 instanceof Result.Ok(var v3)) {

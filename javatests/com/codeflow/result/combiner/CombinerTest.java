@@ -7,7 +7,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeflow.result.ExceptionCause;
+import com.codeflow.result.Functions.ThrowingFunction;
+import com.codeflow.result.Functions.ThrowingSupplier;
 import com.codeflow.result.Result;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class CombinerTest {
@@ -27,6 +31,11 @@ class CombinerTest {
   void shouldBeginWithResult() {
     Combiner<String> combiner = begin(ok("initial"));
     assertThat(combiner.initialValue()).isEqualTo(ok("initial"));
+  }
+
+  @Test
+  void shouldThrowNullPointerExceptionWhenBeginInitialResultIsNull() {
+    assertThatThrownBy(() -> begin(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- andThen (Supplier & Function) Tests ---
@@ -58,6 +67,16 @@ class CombinerTest {
   }
 
   @Test
+  void shouldRejectNullSupplierInAndThenConsistentlyOnOkAndErr() {
+    Result<String> initialErr = err(new ExceptionCause(new RuntimeException("fail")));
+
+    assertThatThrownBy(() -> begin(ok("hello")).andThen((Supplier<Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(initialErr).andThen((Supplier<Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
   void shouldExecuteAndThenFunctionWhenOk() {
     Combiner2<String, Integer> result = begin(ok("hello")).andThen(String::length);
 
@@ -81,6 +100,16 @@ class CombinerTest {
     assertThat(result.result1()).isEqualTo(initial);
     assertThat(result.result2()).isInstanceOf(Result.Err.class);
     assertThat(invoked[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullFunctionInAndThenConsistentlyOnOkAndErr() {
+    Result<String> initialErr = err(new ExceptionCause(new RuntimeException("fail")));
+
+    assertThatThrownBy(() -> begin(ok("hello")).andThen((Function<String, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(initialErr).andThen((Function<String, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- andThenApply Tests ---
@@ -112,6 +141,16 @@ class CombinerTest {
   }
 
   @Test
+  void shouldRejectNullSupplierInAndThenApplyConsistentlyOnOkAndErr() {
+    Result<String> initialErr = err(new ExceptionCause(new RuntimeException("fail")));
+
+    assertThatThrownBy(() -> begin(ok("hello")).andThenApply((Supplier<Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(initialErr).andThenApply((Supplier<Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
   void shouldExecuteAndThenApplyFunctionWhenOk() {
     Combiner2<String, Integer> result = begin(ok("hello")).andThenApply(s -> ok(s.length()));
 
@@ -133,8 +172,21 @@ class CombinerTest {
                 });
 
     assertThat(result.result1()).isEqualTo(initial);
+    assertThat(result.result2()).isEqualTo(result.result1());
     assertThat(result.result2()).isInstanceOf(Result.Err.class);
     assertThat(invoked[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullFunctionInAndThenApplyConsistentlyOnOkAndErr() {
+    Result<String> initialErr = err(new ExceptionCause(new RuntimeException("fail")));
+
+    assertThatThrownBy(
+            () -> begin(ok("hello")).andThenApply((Function<String, Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () -> begin(initialErr).andThenApply((Function<String, Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- andThenTrying Tests ---
@@ -193,6 +245,20 @@ class CombinerTest {
   }
 
   @Test
+  void shouldRejectNullArgumentsInAndThenTryingSupplierConsistentlyOnOkAndErr() {
+    Result<String> initialErr = err(new ExceptionCause(new RuntimeException("fail")));
+
+    assertThatThrownBy(() -> begin(ok("start")).andThenTrying((ThrowingSupplier<Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(initialErr).andThenTrying((ThrowingSupplier<Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(ok("start")).andThenTrying(() -> 99, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(initialErr).andThenTrying(() -> 99, null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
   void shouldExecuteAndThenTryingFunctionSuccess() {
     Combiner2<String, Integer> result = begin(ok("123")).andThenTrying(Integer::parseInt);
 
@@ -228,5 +294,21 @@ class CombinerTest {
     assertThat(result.result1()).isEqualTo(initial);
     assertThat(result.result2()).isInstanceOf(Result.Err.class);
     assertThat(invoked[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullArgumentsInAndThenTryingFunctionConsistentlyOnOkAndErr() {
+    Result<String> initialErr = err(new ExceptionCause(new RuntimeException("fail")));
+
+    assertThatThrownBy(
+            () -> begin(ok("123")).andThenTrying((ThrowingFunction<String, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () -> begin(initialErr).andThenTrying((ThrowingFunction<String, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(ok("123")).andThenTrying(Integer::parseInt, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> begin(initialErr).andThenTrying(Integer::parseInt, null))
+        .isInstanceOf(NullPointerException.class);
   }
 }

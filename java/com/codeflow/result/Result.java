@@ -25,7 +25,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    */
   record Ok<T>(T value) implements Result<T> {
     public Ok {
-      requireNonNull(value, "Ok value cannot be null");
+      requireNonNull(value);
       if (value instanceof Result) {
         throw new IllegalArgumentException("Cannot wrap Result in Ok");
       }
@@ -40,7 +40,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    */
   record Err<T>(Cause error) implements Result<T> {
     public Err {
-      requireNonNull(error, "Err reason cannot be null");
+      requireNonNull(error);
     }
 
     @SuppressWarnings("unchecked")
@@ -58,6 +58,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return A new Result containing the mapped value or the original error.
    */
   default <U> Result<U> then(Function<? super T, ? extends U> fn) {
+    requireNonNull(fn);
     return switch (this) {
       case Ok(var v) -> ok(fn.apply(v));
       case Err<T> error -> error.into();
@@ -73,6 +74,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The Result produced by the mapper, or the original error.
    */
   default <U> Result<U> thenApply(Function<? super T, ? extends Result<? extends U>> fn) {
+    requireNonNull(fn);
     return switch (this) {
       case Ok(var v) -> narrow(fn.apply(v));
       case Err<T> error -> error.into();
@@ -96,6 +98,8 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
   default <U> Result<U> thenTrying(
       ThrowingFunction<? super T, ? extends U> fn,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(fn);
+    requireNonNull(exceptionMapper);
     return switch (this) {
       case Ok(var value) -> {
         U result;
@@ -138,8 +142,9 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return A new Result containing the original success or the mapped error.
    */
   default Result<T> onError(Function<Cause, Result<T>> fn) {
+    requireNonNull(fn);
     if (this instanceof Err(var reason)) {
-      return fn.apply(reason);
+      return requireNonNull(fn.apply(reason));
     }
     return this;
   }
@@ -152,6 +157,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return This Result instance.
    */
   default Result<T> also(Consumer<? super T> consumer) {
+    requireNonNull(consumer);
     if (this instanceof Ok(T value)) {
       consumer.accept(value);
     }
@@ -161,22 +167,24 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
   /**
    * Consumes the success value if present; does nothing if this is an {@link Err}.
    *
-   * @param fn The action to perform on the success value.
+   * @param consumer The action to perform on the success value.
    */
-  default void ifOk(Consumer<? super T> fn) {
+  default void ifOk(Consumer<? super T> consumer) {
+    requireNonNull(consumer);
     if (this instanceof Ok(T value)) {
-      fn.accept(value);
+      consumer.accept(value);
     }
   }
 
   /**
    * Consumes the error value if present; does nothing if this is an {@link Ok}.
    *
-   * @param fn The action to perform on the error reason.
+   * @param consumer The action to perform on the error reason.
    */
-  default void ifErr(Consumer<? super Cause> fn) {
+  default void ifErr(Consumer<? super Cause> consumer) {
+    requireNonNull(consumer);
     if (this instanceof Err(Cause cause)) {
-      fn.accept(cause);
+      consumer.accept(cause);
     }
   }
 
@@ -202,6 +210,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The success value or the fallback value.
    */
   default T unwrapOr(T fallback) {
+    requireNonNull(fallback);
     return switch (this) {
       case Ok(var value) -> value;
       case Err<?> _ -> fallback;
@@ -216,9 +225,10 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The success value or the computed fallback value.
    */
   default T unwrapOrElse(Function<Cause, ? extends T> fallbackFn) {
+    requireNonNull(fallbackFn);
     return switch (this) {
       case Ok(var value) -> value;
-      case Err(var reason) -> fallbackFn.apply(reason);
+      case Err(var reason) -> requireNonNull(fallbackFn.apply(reason));
     };
   }
 
@@ -230,9 +240,10 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @return The success value or the computed fallback value.
    */
   default T unwrapOrElse(Supplier<? extends T> fallbackFn) {
+    requireNonNull(fallbackFn);
     return switch (this) {
       case Ok(var value) -> value;
-      case Err<?> _ -> fallbackFn.get();
+      case Err<?> _ -> requireNonNull(fallbackFn.get());
     };
   }
 
@@ -246,6 +257,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @throws X if this Result is an {@link Err}.
    */
   default <X extends Throwable> T unwrapOrElseThrow(Function<Cause, ? extends X> fn) throws X {
+    requireNonNull(fn);
     return switch (this) {
       case Ok(var value) -> value;
       case Err(var reason) -> throw fn.apply(reason);
@@ -261,6 +273,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    */
   @SuppressWarnings("unchecked")
   static <T> Result<T> narrow(Result<? extends T> result) {
+    requireNonNull(result);
     return (Result<T>) result;
   }
 
@@ -322,6 +335,8 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
   static <T> Result<T> trying(
       ThrowingSupplier<? extends T> supplier,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(supplier);
+    requireNonNull(exceptionMapper);
     T result;
     try {
       result = supplier.get();
