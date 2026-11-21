@@ -41,5 +41,8 @@ replay_pid*
 # Ignore the actual downloaded binaries (cached by the wrapper)
 .bazel_download_cache/
 
+# Bazel BSP
+.bazelbsp/
+
 # Do NOT ignore the wrapper script
 !/bazel

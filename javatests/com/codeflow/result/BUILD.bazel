@@ -1,15 +1,20 @@
 load("//tools/junit:junit6.bzl", "junit6_test")
 
+TEST_SRCS = [
+    "FakeCause.java",
+    "package-info.java",
+]
+
+TEST_DEPS = [
+    "//java/com/codeflow/result",
+    "@maven//:org_jspecify_jspecify",
+]
+
 [junit6_test(
     name = f.removesuffix(".java"),
-    srcs = [
-        f,
-        "FakeCause.java",
-    ],
+    srcs = [f] + TEST_SRCS,
     package = "com.codeflow.result",
-    deps = [
-        "//java/com/codeflow/result",
-    ],
+    deps = TEST_DEPS,
 ) for f in glob(["*Test.java"])]
 
 test_suite(
