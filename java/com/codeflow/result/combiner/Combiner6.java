@@ -16,7 +16,7 @@ import java.util.function.Function;
  * Holds six {@link Result} values and provides operations for combining their successful values.
  *
  * <p>As the maximum arity combiner, {@code Combiner6} provides terminal operations via the {@code
- * then} methods to combine the six values into a single result, or the {@code also} method to
+ * then} methods to combine the six values into a single result, or the {@code peekOk} method to
  * perform a side-effect action.
  *
  * <p>The actual combination and result-handling behaviour is delegated to {@link CombinerUtils}.
@@ -66,7 +66,7 @@ public record Combiner6<T1, T2, T3, T4, T5, T6>(
    * @return this combiner
    * @throws NullPointerException if {@code consumer} is {@code null}
    */
-  public Combiner6<T1, T2, T3, T4, T5, T6> also(
+  public Combiner6<T1, T2, T3, T4, T5, T6> peekOk(
       Consumer6<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? super T6> consumer) {
     requireNonNull(consumer);
     if (result1 instanceof Result.Ok(var v1)

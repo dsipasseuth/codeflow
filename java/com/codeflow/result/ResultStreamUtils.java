@@ -1,13 +1,10 @@
 package com.codeflow.result;
 
-import java.util.List;
-import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collector;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -47,22 +44,6 @@ public final class ResultStreamUtils {
     return stream -> {
       try (stream) {
         return stream.collect(collector);
-      }
-    };
-  }
-
-  public static <T> Function<Stream<T>, List<T>> toList() {
-    return stream -> {
-      try (stream) {
-        return stream.toList();
-      }
-    };
-  }
-
-  public static <T> Function<Stream<T>, Set<T>> toSet() {
-    return stream -> {
-      try (stream) {
-        return stream.collect(Collectors.toSet());
       }
     };
   }

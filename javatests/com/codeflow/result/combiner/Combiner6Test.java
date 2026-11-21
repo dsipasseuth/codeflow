@@ -29,16 +29,16 @@ class Combiner6Test {
         .hasMessage("Sixth result cannot be null");
   }
 
-  // --- also Tests ---
+  // --- peek Tests ---
 
   @Test
-  void shouldExecuteAlsoWhenAllOk() {
+  void shouldExecutePeekWhenAllOk() {
     boolean[] executed = {false};
     Combiner6<String, Integer, Boolean, Double, Character, Long> combiner =
         new Combiner6<>(ok("foo"), ok(42), ok(true), ok(3.14), ok('z'), ok(100L));
 
     Combiner6<String, Integer, Boolean, Double, Character, Long> returned =
-        combiner.also(
+        combiner.peekOk(
             (s, i, _, _, _, l) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
@@ -55,7 +55,7 @@ class Combiner6Test {
     Combiner6<String, Integer, Boolean, Double, Character, Long> combiner =
         new Combiner6<>(ok("foo"), ok(42), ok(true), ok(3.14), ok('z'), ok(100L));
 
-    assertThatThrownBy(() -> combiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> combiner.peekOk(null)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
@@ -66,18 +66,18 @@ class Combiner6Test {
     Combiner6<String, Integer, Boolean, Double, Character, Long> errCombiner =
         new Combiner6<>(errResult, ok(42), ok(true), ok(3.14), ok('z'), ok(100L));
 
-    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
-  void shouldSkipAlsoWhenAnyResultIsErr() {
+  void shouldSkipPeekWhenAnyResultIsErr() {
     boolean[] executed = {false};
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner6<String, Integer, Boolean, Double, Character, Long> combiner =
         new Combiner6<>(errResult, ok(42), ok(true), ok(3.14), ok('z'), ok(100L));
 
-    combiner.also((_, _, _, _, _, _) -> executed[0] = true);
+    combiner.peekOk((_, _, _, _, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }

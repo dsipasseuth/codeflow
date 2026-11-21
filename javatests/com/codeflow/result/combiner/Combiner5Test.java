@@ -205,16 +205,16 @@ class Combiner5Test {
         .isInstanceOf(NullPointerException.class);
   }
 
-  // --- also Tests ---
+  // --- peek Tests ---
 
   @Test
-  void shouldExecuteAlsoWhenAllOk() {
+  void shouldExecutePeekWhenAllOk() {
     boolean[] executed = {false};
     Combiner5<String, Integer, Boolean, Double, Character> combiner =
         new Combiner5<>(ok("foo"), ok(42), ok(true), ok(3.14), ok('z'));
 
     Combiner5<String, Integer, Boolean, Double, Character> returned =
-        combiner.also(
+        combiner.peekOk(
             (s, i, _, _, c) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
@@ -227,27 +227,27 @@ class Combiner5Test {
   }
 
   @Test
-  void shouldSkipAlsoWhenAnyResultIsErr() {
+  void shouldSkipPeekWhenAnyResultIsErr() {
     boolean[] executed = {false};
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner5<String, Integer, Boolean, Double, Character> combiner =
         new Combiner5<>(errResult, ok(42), ok(true), ok(3.14), ok('z'));
 
-    combiner.also((_, _, _, _, _) -> executed[0] = true);
+    combiner.peekOk((_, _, _, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
 
   @Test
-  void shouldRejectNullConsumer5InAlsoConsistentlyOnOkAndErr() {
+  void shouldRejectNullConsumer5InPeekConsistentlyOnOkAndErr() {
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner5<String, Integer, Boolean, Double, Character> okCombiner =
         new Combiner5<>(ok("foo"), ok(42), ok(true), ok(3.14), ok('z'));
     Combiner5<String, Integer, Boolean, Double, Character> errCombiner =
         new Combiner5<>(errResult, ok(42), ok(true), ok(3.14), ok('z'));
 
-    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---

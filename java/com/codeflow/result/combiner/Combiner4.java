@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * Holds four {@link Result} values and provides operations for combining their successful values.
  *
  * <p>Use the {@code andThen} methods to extend this combination with a fifth result, or use the
- * {@code then} methods to combine the four values into a single result. The {@code also} method
+ * {@code then} methods to combine the four values into a single result. The {@code peekOk} method
  * performs an action with the four values while retaining this combiner.
  *
  * <p>The actual combination and result-handling behaviour is delegated to {@link CombinerUtils}.
@@ -169,7 +169,7 @@ public record Combiner4<T1, T2, T3, T4>(
    * @param fn action to perform with the four values
    * @return this combiner
    */
-  public Combiner4<T1, T2, T3, T4> also(
+  public Combiner4<T1, T2, T3, T4> peekOk(
       Consumer4<? super T1, ? super T2, ? super T3, ? super T4> fn) {
     requireNonNull(fn);
     if (result1 instanceof Result.Ok(var v1)

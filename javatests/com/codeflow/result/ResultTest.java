@@ -3,6 +3,8 @@ package com.codeflow.result;
 import static com.codeflow.result.Result.err;
 import static com.codeflow.result.Result.ok;
 import static com.codeflow.result.Result.trying;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -334,34 +336,80 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("also should run consumer for Ok and return same Result")
-  public void testAlsoRunsConsumerForOk() {
+  @DisplayName("peek should run consumer for Ok and return same Result")
+  public void testPeekRunsConsumerForOk() {
     AtomicInteger seen = new AtomicInteger();
 
     Result<Integer> result = ok(42);
-    Result<Integer> returned = result.also(seen::set);
+    Result<Integer> returned = result.peekOk(seen::set);
 
     assertSame(result, returned);
     assertEquals(42, seen.get());
   }
 
   @Test
-  @DisplayName("also should not run consumer for Err and should return same Result")
-  public void testAlsoDoesNotRunConsumerForErr() {
+  @DisplayName("peek should not run consumer for Err and should return same Result")
+  public void testPeekDoesNotRunConsumerForErr() {
     AtomicBoolean called = new AtomicBoolean(false);
 
     Result<Integer> result = err(fakeCause());
-    Result<Integer> returned = result.also(_ -> called.set(true));
+    Result<Integer> returned = result.peekOk(_ -> called.set(true));
 
     assertSame(result, returned);
     assertFalse(called.get());
   }
 
   @Test
-  @DisplayName("also should reject null consumer consistently on Ok and Err")
-  public void testAlsoRejectsNullConsumerOnOkAndErr() {
-    assertThrows(NullPointerException.class, () -> ok(42).also(null));
-    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).also(null));
+  @DisplayName("peek should reject null consumer consistently on Ok and Err")
+  public void testPeekRejectsNullConsumerOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok(42).peekOk(null));
+    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).peekOk(null));
+  }
+
+  @Test
+  void shouldInvokeConsumerAndReturnSameErrInstanceWhenErr() {
+    Cause cause = new FakeCause("boom");
+    Result<String> result = err(cause);
+    List<Cause> observed = new ArrayList<>();
+
+    Result<String> returned = result.peekErr(observed::add);
+
+    assertThat(observed).containsExactly(cause);
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldSkipConsumerAndReturnSameOkInstanceWhenOk() {
+    Result<String> result = ok("value");
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result<String> returned = result.peekErr(cause -> called.set(true));
+
+    assertThat(called).isFalse();
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldRejectNullConsumerConsistentlyOnOkAndErr() {
+    Result<String> okResult = ok("value");
+    Result<String> errResult = err(new FakeCause("boom"));
+
+    assertThatThrownBy(() -> okResult.peekErr(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.peekErr(null)).isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownByConsumer() {
+    Result<String> errResult = err(new FakeCause("boom"));
+    RuntimeException boom = new IllegalStateException("consumer failed");
+
+    assertThatThrownBy(
+            () ->
+                errResult.peekErr(
+                    cause -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
   }
 
   @Test
