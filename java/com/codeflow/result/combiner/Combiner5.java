@@ -63,6 +63,7 @@ public record Combiner5<T1, T2, T3, T4, T5>(
    * @return a combiner containing the original five results and the produced result
    */
   public <T6> Combiner6<T1, T2, T3, T4, T5, T6> andThen(Supplier<? extends T6> fn) {
+    requireNonNull(fn);
     return new Combiner6<>(
         result1, result2, result3, result4, result5, then((_, _, _, _, _) -> fn.get()));
   }
@@ -87,6 +88,7 @@ public record Combiner5<T1, T2, T3, T4, T5>(
    * @return a combiner containing the original five results and the supplied result
    */
   public <T6> Combiner6<T1, T2, T3, T4, T5, T6> andThenApply(Supplier<Result<? extends T6>> fn) {
+    requireNonNull(fn);
     return new Combiner6<>(
         result1,
         result2,
@@ -125,6 +127,7 @@ public record Combiner5<T1, T2, T3, T4, T5>(
    * @return a combiner containing the original five results and the produced result
    */
   public <T6> Combiner6<T1, T2, T3, T4, T5, T6> andThenTrying(ThrowingSupplier<? extends T6> fn) {
+    requireNonNull(fn);
     return new Combiner6<>(
         result1, result2, result3, result4, result5, thenTrying((_, _, _, _, _) -> fn.get()));
   }
@@ -140,6 +143,8 @@ public record Combiner5<T1, T2, T3, T4, T5>(
   public <T6> Combiner6<T1, T2, T3, T4, T5, T6> andThenTrying(
       ThrowingSupplier<? extends T6> fn,
       Function<? super Exception, ? extends Cause> exceptionMapper) {
+    requireNonNull(fn);
+    requireNonNull(exceptionMapper);
     return new Combiner6<>(
         result1,
         result2,
@@ -193,7 +198,7 @@ public record Combiner5<T1, T2, T3, T4, T5>(
    */
   public Combiner5<T1, T2, T3, T4, T5> also(
       Consumer5<? super T1, ? super T2, ? super T3, ? super T4, ? super T5> fn) {
-
+    requireNonNull(fn);
     if (result1 instanceof Result.Ok(var v1)
         && result2 instanceof Result.Ok(var v2)
         && result3 instanceof Result.Ok(var v3)
@@ -213,7 +218,6 @@ public record Combiner5<T1, T2, T3, T4, T5>(
    */
   public <R> Result<R> then(
       Function5<? super T1, ? super T2, ? super T3, ? super T4, ? super T5, ? extends R> fn) {
-
     return combine(result1, result2, result3, result4, result5, fn);
   }
 

@@ -6,7 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeflow.result.ExceptionCause;
+import com.codeflow.result.Functions.Function3;
+import com.codeflow.result.Functions.ThrowingFunction3;
+import com.codeflow.result.Functions.ThrowingSupplier;
 import com.codeflow.result.Result;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class Combiner3Test {
@@ -34,7 +38,7 @@ class Combiner3Test {
         .hasMessage("Third result cannot be null");
   }
 
-  // --- andThen Tests (Supplier & TriFunction) ---
+  // --- andThen Tests (Supplier & Function3) ---
 
   @Test
   void shouldExecuteAndThenSupplierWhenAllOk() {
@@ -48,7 +52,37 @@ class Combiner3Test {
   }
 
   @Test
-  void shouldExecuteAndThenTriFunctionWhenAllOk() {
+  void shouldShortCircuitAndThenSupplierWhenAnyErr() {
+    boolean[] invoked = {false};
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<String, Integer, Boolean> combiner = new Combiner3<>(errResult, ok(1), ok(true));
+
+    Combiner4<String, Integer, Boolean, String> result =
+        combiner.andThen(
+            () -> {
+              invoked[0] = true;
+              return "fourth";
+            });
+
+    assertThat(result.result1()).isEqualTo(errResult);
+    assertThat(result.result4()).isInstanceOf(Result.Err.class);
+    assertThat(invoked[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullSupplierInAndThenConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<String, Integer, Boolean> okCombiner = new Combiner3<>(ok("a"), ok(1), ok(true));
+    Combiner3<String, Integer, Boolean> errCombiner = new Combiner3<>(errResult, ok(1), ok(true));
+
+    assertThatThrownBy(() -> okCombiner.andThen((Supplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThen((Supplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldExecuteAndThenFunction3WhenAllOk() {
     Combiner3<String, String, String> combiner = new Combiner3<>(ok("a"), ok("b"), ok("c"));
     Combiner4<String, String, String, String> result = combiner.andThen((a, b, c) -> a + b + c);
 
@@ -58,23 +92,45 @@ class Combiner3Test {
     assertThat(result.result4()).isEqualTo(ok("abc"));
   }
 
+  @Test
+  void shouldRejectNullFunction3InAndThenConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<String, String, String> okCombiner = new Combiner3<>(ok("a"), ok("b"), ok("c"));
+    Combiner3<String, String, String> errCombiner = new Combiner3<>(errResult, ok("b"), ok("c"));
+
+    assertThatThrownBy(() -> okCombiner.andThen((Function3<String, String, String, String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThen((Function3<String, String, String, String>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
   // --- andThenApply Tests ---
 
   @Test
-  void shouldExecuteAndThenApplySupplierWhenAllOk() {
-    Combiner3<String, Integer, Boolean> combiner = new Combiner3<>(ok("a"), ok(1), ok(true));
-    Combiner4<String, Integer, Boolean, String> result = combiner.andThenApply(() -> ok("applied"));
-
-    assertThat(result.result4()).isEqualTo(ok("applied"));
-  }
-
-  @Test
-  void shouldExecuteAndThenApplyTriFunctionWhenAllOk() {
+  void shouldExecuteAndThenApplyFunction3WhenAllOk() {
     Combiner3<Integer, Integer, Integer> combiner = new Combiner3<>(ok(2), ok(3), ok(4));
     Combiner4<Integer, Integer, Integer, Integer> result =
         combiner.andThenApply((a, b, c) -> ok(a * b * c));
 
     assertThat(result.result4()).isEqualTo(ok(24));
+  }
+
+  @Test
+  void shouldRejectNullFunction3InAndThenApplyConsistentlyOnOkAndErr() {
+    Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<Integer, Integer, Integer> okCombiner = new Combiner3<>(ok(2), ok(3), ok(4));
+    Combiner3<Integer, Integer, Integer> errCombiner = new Combiner3<>(errResult, ok(3), ok(4));
+
+    assertThatThrownBy(
+            () ->
+                okCombiner.andThenApply(
+                    (Function3<Integer, Integer, Integer, Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () ->
+                errCombiner.andThenApply(
+                    (Function3<Integer, Integer, Integer, Result<Integer>>) null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- andThenTrying Tests ---
@@ -113,7 +169,23 @@ class Combiner3Test {
   }
 
   @Test
-  void shouldExecuteAndThenTryingTriFunctionSuccess() {
+  void shouldRejectNullArgumentsInAndThenTryingSupplierConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<String, Integer, Boolean> okCombiner = new Combiner3<>(ok("a"), ok(1), ok(true));
+    Combiner3<String, Integer, Boolean> errCombiner = new Combiner3<>(errResult, ok(1), ok(true));
+
+    assertThatThrownBy(() -> okCombiner.andThenTrying((ThrowingSupplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying((ThrowingSupplier<String>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.andThenTrying(() -> "ok", null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying(() -> "ok", null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldExecuteAndThenTryingFunction3Success() {
     Combiner3<Integer, Integer, Integer> combiner = new Combiner3<>(ok(10), ok(2), ok(1));
     Combiner4<Integer, Integer, Integer, Integer> result =
         combiner.andThenTrying((a, b, c) -> (a / b) + c);
@@ -122,7 +194,7 @@ class Combiner3Test {
   }
 
   @Test
-  void shouldExecuteAndThenTryingTriFunctionFailureWithCustomMapper() {
+  void shouldExecuteAndThenTryingFunction3FailureWithCustomMapper() {
     Combiner3<Integer, Integer, Integer> combiner = new Combiner3<>(ok(10), ok(0), ok(1));
     Combiner4<Integer, Integer, Integer, Integer> result =
         combiner.andThenTrying(
@@ -130,6 +202,28 @@ class Combiner3Test {
             ex -> new ExceptionCause(new RuntimeException("Math error: " + ex.getMessage())));
 
     assertThat(result.result4()).isInstanceOf(Result.Err.class);
+  }
+
+  @Test
+  void shouldRejectNullArgumentsInAndThenTryingFunction3ConsistentlyOnOkAndErr() {
+    Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<Integer, Integer, Integer> okCombiner = new Combiner3<>(ok(10), ok(2), ok(1));
+    Combiner3<Integer, Integer, Integer> errCombiner = new Combiner3<>(errResult, ok(2), ok(1));
+
+    assertThatThrownBy(
+            () ->
+                okCombiner.andThenTrying(
+                    (ThrowingFunction3<Integer, Integer, Integer, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(
+            () ->
+                errCombiner.andThenTrying(
+                    (ThrowingFunction3<Integer, Integer, Integer, Integer>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.andThenTrying((a, b, c) -> a + b + c, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.andThenTrying((a, b, c) -> a + b + c, null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // --- also (Side-effect) Tests ---
@@ -158,9 +252,19 @@ class Combiner3Test {
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner3<String, Integer, Boolean> combiner = new Combiner3<>(errResult, ok(42), ok(true));
 
-    combiner.also((s, i, b) -> executed[0] = true);
+    combiner.also((_, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
+  }
+
+  @Test
+  void shouldRejectNullConsumer3InAlsoConsistentlyOnOkAndErr() {
+    Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
+    Combiner3<String, Integer, Boolean> okCombiner = new Combiner3<>(ok("foo"), ok(42), ok(true));
+    Combiner3<String, Integer, Boolean> errCombiner = new Combiner3<>(errResult, ok(42), ok(true));
+
+    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---
@@ -171,6 +275,15 @@ class Combiner3Test {
     Result<Integer> result = combiner.then((a, b, c) -> a + b + c);
 
     assertThat(result).isEqualTo(ok(12));
+  }
+
+  @Test
+  void shouldPropagateFirstErrInThen() {
+    Result<Integer> firstErr = err(new ExceptionCause(new RuntimeException("first")));
+    Result<Integer> secondErr = err(new ExceptionCause(new RuntimeException("second")));
+    Combiner3<Integer, Integer, Integer> combiner = new Combiner3<>(firstErr, secondErr, ok(5));
+
+    assertThat(combiner.then((a, b, c) -> a + b + c)).isEqualTo(firstErr);
   }
 
   @Test
@@ -199,7 +312,7 @@ class Combiner3Test {
     Result<Integer> result =
         combiner.thenTrying(
             (a, b, c) -> Integer.parseInt(a) + Integer.parseInt(b) + Integer.parseInt(c),
-            ex -> new ExceptionCause(new RuntimeException("Parse failed")));
+            _ -> new ExceptionCause(new RuntimeException("Parse failed")));
 
     assertThat(result).isInstanceOf(Result.Err.class);
   }

@@ -5,6 +5,7 @@ import static com.codeflow.result.Result.ok;
 import static com.codeflow.result.Result.trying;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,7 +59,7 @@ public class ResultTest {
   public void testOkNullCheck() {
     var exception = assertThrows(NullPointerException.class, () -> ok(null));
 
-    assertEquals("Ok value cannot be null", exception.getMessage());
+    assertNull(exception.getMessage());
   }
 
   @Test
@@ -75,7 +76,8 @@ public class ResultTest {
   @DisplayName("Err should throw NullPointerException if error is null")
   public void testErrNullCheck() {
     var exception = assertThrows(NullPointerException.class, () -> err(null));
-    assertEquals("Err reason cannot be null", exception.getMessage());
+
+    assertNull(exception.getMessage());
   }
 
   @Test
@@ -108,7 +110,8 @@ public class ResultTest {
   @DisplayName("ok factory should reject null values")
   public void testOkFactoryRejectsNull() {
     var exception = assertThrows(NullPointerException.class, () -> ok(null));
-    assertEquals("Ok value cannot be null", exception.getMessage());
+
+    assertNull(exception.getMessage());
   }
 
   @Test
@@ -125,7 +128,7 @@ public class ResultTest {
   public void testErrFactoryRejectsNull() {
     var exception = assertThrows(NullPointerException.class, () -> err(null));
 
-    assertEquals("Err reason cannot be null", exception.getMessage());
+    assertNull(exception.getMessage());
   }
 
   @Test
@@ -142,6 +145,13 @@ public class ResultTest {
     Result<Integer> result = Result.<String>err(fakeCause()).then(String::length);
 
     assertEquals(err(fakeCause()), result);
+  }
+
+  @Test
+  @DisplayName("then should reject null mapper consistently on Ok and Err")
+  public void testThenRejectsNullMapperOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok("value").then(null));
+    assertThrows(NullPointerException.class, () -> Result.<String>err(fakeCause()).then(null));
   }
 
   @Test
@@ -188,6 +198,13 @@ public class ResultTest {
   }
 
   @Test
+  @DisplayName("thenApply should reject null mapper consistently on Ok and Err")
+  public void testThenApplyRejectsNullMapperOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok("value").thenApply(null));
+    assertThrows(NullPointerException.class, () -> Result.<String>err(fakeCause()).thenApply(null));
+  }
+
+  @Test
   @DisplayName("thenApply should support covariant success result")
   public void testThenApplySupportsCovariantSuccessResult() {
     Result<List<String>> result =
@@ -229,6 +246,20 @@ public class ResultTest {
   }
 
   @Test
+  @DisplayName("thenTrying should use default exception handler when mapper is omitted")
+  public void testThenTryingUsesDefaultExceptionHandler() {
+    Result<Integer> result =
+        ok("abc")
+            .thenTrying(
+                _ -> {
+                  throw new IOException("boom");
+                });
+
+    assertTrue(
+        result instanceof Result.Err<Integer>(Cause cause) && cause instanceof ExceptionCause);
+  }
+
+  @Test
   @DisplayName("thenTrying should propagate original Err without invoking mapper")
   public void testThenTryingPropagatesOriginalErr() {
     AtomicBoolean called = new AtomicBoolean(false);
@@ -246,6 +277,40 @@ public class ResultTest {
   }
 
   @Test
+  @DisplayName("thenTrying should reject null arguments consistently on Ok and Err")
+  public void testThenTryingRejectsNullArgumentsOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok("123").thenTrying(null));
+    assertThrows(
+        NullPointerException.class, () -> Result.<String>err(fakeCause()).thenTrying(null));
+    assertThrows(NullPointerException.class, () -> ok("123").thenTrying(Integer::parseInt, null));
+    assertThrows(
+        NullPointerException.class,
+        () -> Result.<String>err(fakeCause()).thenTrying(Integer::parseInt, null));
+  }
+
+  @Test
+  @DisplayName(
+      "thenTrying should re-interrupt thread and throw RuntimeException on InterruptedException")
+  public void testThenTryingHandlesInterruptedException() {
+    try {
+      var exception =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  ok("value")
+                      .thenTrying(
+                          _ -> {
+                            throw new InterruptedException("stop");
+                          }));
+
+      assertEquals("Execution interrupted", exception.getMessage());
+      assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
   @DisplayName("onError should map Err value")
   public void testOnErrorMapsErr() {
     Result<String> result = Result.<String>err(fakeCause()).onError(_ -> ok("value"));
@@ -259,6 +324,13 @@ public class ResultTest {
     Result<String> result = ok("value").onError(_ -> ok("broken"));
 
     assertEquals(ok("value"), result);
+  }
+
+  @Test
+  @DisplayName("onError should reject null mapper consistently on Ok and Err")
+  public void testOnErrorRejectsNullMapperOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok("value").onError(null));
+    assertThrows(NullPointerException.class, () -> Result.<String>err(fakeCause()).onError(null));
   }
 
   @Test
@@ -283,6 +355,49 @@ public class ResultTest {
 
     assertSame(result, returned);
     assertFalse(called.get());
+  }
+
+  @Test
+  @DisplayName("also should reject null consumer consistently on Ok and Err")
+  public void testAlsoRejectsNullConsumerOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok(42).also(null));
+    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).also(null));
+  }
+
+  @Test
+  @DisplayName("ifOk should run consumer only on Ok")
+  public void testIfOk() {
+    AtomicInteger seen = new AtomicInteger();
+
+    ok(7).ifOk(seen::set);
+    assertEquals(7, seen.get());
+
+    Result.<Integer>err(fakeCause()).ifOk(_ -> fail("Should not run for Err"));
+  }
+
+  @Test
+  @DisplayName("ifOk should reject null consumer consistently on Ok and Err")
+  public void testIfOkRejectsNullConsumerOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok(7).ifOk(null));
+    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).ifOk(null));
+  }
+
+  @Test
+  @DisplayName("ifErr should run consumer only on Err")
+  public void testIfErr() {
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    ok(7).ifErr(_ -> fail("Should not run for Ok"));
+    Result.<Integer>err(fakeCause()).ifErr(_ -> called.set(true));
+
+    assertTrue(called.get());
+  }
+
+  @Test
+  @DisplayName("ifErr should reject null consumer consistently on Ok and Err")
+  public void testIfErrRejectsNullConsumerOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok(7).ifErr(null));
+    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).ifErr(null));
   }
 
   @Test
@@ -313,8 +428,15 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("unwrapOrElse should return Ok value without invoking fallback")
-  public void testUnwrapOrElseReturnsOkValue() {
+  @DisplayName("unwrapOr should reject null fallback consistently on Ok and Err")
+  public void testUnwrapOrRejectsNullFallbackOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok(42).unwrapOr(null));
+    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).unwrapOr(null));
+  }
+
+  @Test
+  @DisplayName("unwrapOrElse(Function) should return Ok value without invoking fallback")
+  public void testUnwrapOrElseFunctionReturnsOkValue() {
     AtomicBoolean called = new AtomicBoolean(false);
 
     int value =
@@ -327,6 +449,60 @@ public class ResultTest {
 
     assertEquals(42, value);
     assertFalse(called.get());
+  }
+
+  @Test
+  @DisplayName("unwrapOrElse(Function) should compute fallback from error on Err")
+  public void testUnwrapOrElseFunctionComputesFallbackForErr() {
+    int value =
+        Result.<Integer>err(new FakeCause("404"))
+            .unwrapOrElse(
+                reason -> reason instanceof FakeCause(String msg) ? Integer.parseInt(msg) : -1);
+
+    assertEquals(404, value);
+  }
+
+  @Test
+  @DisplayName("unwrapOrElse(Function) should reject null fallback consistently on Ok and Err")
+  public void testUnwrapOrElseFunctionRejectsNullOnOkAndErr() {
+    assertThrows(
+        NullPointerException.class,
+        () -> ok(42).unwrapOrElse((java.util.function.Function<Cause, Integer>) null));
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            Result.<Integer>err(fakeCause())
+                .unwrapOrElse((java.util.function.Function<Cause, Integer>) null));
+  }
+
+  @Test
+  @DisplayName("unwrapOrElse(Supplier) should return Ok value or fallback for Err")
+  public void testUnwrapOrElseSupplier() {
+    AtomicBoolean called = new AtomicBoolean(false);
+    assertEquals(
+        42,
+        ok(42)
+            .unwrapOrElse(
+                () -> {
+                  called.set(true);
+                  return 100;
+                }));
+    assertFalse(called.get());
+
+    assertEquals(100, Result.<Integer>err(fakeCause()).unwrapOrElse(() -> 100));
+  }
+
+  @Test
+  @DisplayName("unwrapOrElse(Supplier) should reject null supplier consistently on Ok and Err")
+  public void testUnwrapOrElseSupplierRejectsNullOnOkAndErr() {
+    assertThrows(
+        NullPointerException.class,
+        () -> ok(42).unwrapOrElse((java.util.function.Supplier<Integer>) null));
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            Result.<Integer>err(fakeCause())
+                .unwrapOrElse((java.util.function.Supplier<Integer>) null));
   }
 
   @Test
@@ -356,13 +532,22 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("narrow should narrow wildcard Result")
+  @DisplayName("unwrapOrElseThrow should reject null function consistently on Ok and Err")
+  public void testUnwrapOrElseThrowRejectsNullOnOkAndErr() {
+    assertThrows(NullPointerException.class, () -> ok(42).unwrapOrElseThrow(null));
+    assertThrows(
+        NullPointerException.class, () -> Result.<Integer>err(fakeCause()).unwrapOrElseThrow(null));
+  }
+
+  @Test
+  @DisplayName("narrow should narrow wildcard Result and reject null")
   public void testNarrow() {
     Result<? extends List<String>> wildcard = ok(new ArrayList<>(List.of("a", "b")));
 
     Result<List<String>> narrowed = Result.narrow(wildcard);
 
     assertEquals(ok(List.of("a", "b")), narrowed);
+    assertThrows(NullPointerException.class, () -> Result.narrow(null));
   }
 
   @Test
@@ -392,5 +577,13 @@ public class ResultTest {
             exception -> new FakeCause("io: " + exception.getMessage()));
 
     assertEquals(err(new FakeCause("io: disk failed")), result);
+  }
+
+  @Test
+  @DisplayName("trying should reject null supplier and null exceptionMapper")
+  public void testTryingRejectsNulls() {
+    assertThrows(NullPointerException.class, () -> trying(null));
+    assertThrows(NullPointerException.class, () -> trying(() -> 1, null));
+    assertThrows(NullPointerException.class, () -> trying(null, ExceptionCause::new));
   }
 }

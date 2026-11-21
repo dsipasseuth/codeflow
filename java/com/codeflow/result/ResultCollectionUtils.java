@@ -1,7 +1,5 @@
 package com.codeflow.result;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -27,7 +25,6 @@ public final class ResultCollectionUtils {
    */
   public static <T, R> Function<List<? extends T>, List<R>> map(
       Function<? super T, ? extends R> fn) {
-    requireNonNull(fn, "Mapper function cannot be null");
     return list -> list.stream().<R>map(fn).toList();
   }
 
@@ -41,7 +38,6 @@ public final class ResultCollectionUtils {
    */
   public static <T, R> Function<List<? extends T>, List<R>> multiMap(
       BiConsumer<? super T, ? super Consumer<R>> fn) {
-    requireNonNull(fn, "Mapper function cannot be null");
     return list -> list.stream().mapMulti(fn).toList();
   }
 
@@ -53,7 +49,6 @@ public final class ResultCollectionUtils {
    * @return A function that filters a list using the supplied predicate.
    */
   public static <T> Function<List<? extends T>, List<T>> filter(Predicate<? super T> predicate) {
-    requireNonNull(predicate, "Predicate cannot be null");
     return list -> {
       @SuppressWarnings("unchecked")
       List<T> casted = (List<T>) list;
@@ -69,7 +64,6 @@ public final class ResultCollectionUtils {
    * @return A function that sorts the list.
    */
   public static <T> Function<List<? extends T>, List<T>> sorted(Comparator<? super T> comparator) {
-    requireNonNull(comparator, "Comparator cannot be null");
     return list -> {
       @SuppressWarnings("unchecked")
       List<T> casted = (List<T>) list;
@@ -85,7 +79,6 @@ public final class ResultCollectionUtils {
    * @return A consumer that applies the supplied action to every list element.
    */
   public static <T> Consumer<List<? extends T>> forEach(Consumer<? super T> consumer) {
-    requireNonNull(consumer, "Consumer cannot be null");
     return list -> list.forEach(consumer);
   }
 }
