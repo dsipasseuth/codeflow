@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  * Holds three {@link Result} values and provides operations for combining their successful values.
  *
  * <p>Use the {@code andThen} methods to extend this combination with a fourth result, or use the
- * {@code then} methods to combine the three values into a single result. The {@code also} method
+ * {@code then} methods to combine the three values into a single result. The {@code peekOk} method
  * performs an action with the three values while retaining this combiner.
  *
  * <p>The actual combination and result-handling behaviour is delegated to {@link CombinerUtils}.
@@ -164,7 +164,7 @@ public record Combiner3<T1, T2, T3>(Result<T1> result1, Result<T2> result2, Resu
    * @param fn action to perform with the three values
    * @return this combiner
    */
-  public Combiner3<T1, T2, T3> also(Consumer3<? super T1, ? super T2, ? super T3> fn) {
+  public Combiner3<T1, T2, T3> peekOk(Consumer3<? super T1, ? super T2, ? super T3> fn) {
     requireNonNull(fn);
     if (result1 instanceof Result.Ok(var v1)
         && result2 instanceof Result.Ok(var v2)

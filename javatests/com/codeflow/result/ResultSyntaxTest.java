@@ -113,12 +113,12 @@ class ResultSyntaxTest {
   }
 
   @Test
-  @DisplayName("also should accept consumer of a supertype")
-  void alsoShouldAcceptConsumerOfSupertype() {
+  @DisplayName("peek should accept consumer of a supertype")
+  void peekShouldAcceptConsumerOfSupertype() {
     List<Number> seen = new ArrayList<>();
     Consumer<Number> consumer = seen::add;
 
-    Result<Integer> result = ok(42).also(consumer);
+    Result<Integer> result = ok(42).peekOk(consumer);
 
     assertEquals(ok(42), result);
     assertEquals(List.of(42), seen);

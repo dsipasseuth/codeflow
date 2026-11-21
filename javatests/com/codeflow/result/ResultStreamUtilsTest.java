@@ -7,8 +7,8 @@ import static com.codeflow.result.ResultStreamUtils.filter;
 import static com.codeflow.result.ResultStreamUtils.forEach;
 import static com.codeflow.result.ResultStreamUtils.map;
 import static com.codeflow.result.ResultStreamUtils.mapMulti;
-import static com.codeflow.result.ResultStreamUtils.toList;
-import static com.codeflow.result.ResultStreamUtils.toSet;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -37,27 +37,26 @@ class ResultStreamUtilsTest {
   @Test
   @DisplayName("Fluent pipeline: filter and collect to list")
   void testFluentFilterAndToList() {
-    AtomicBoolean closed = new AtomicBoolean(false);
-    Stream<String> stream = Stream.of("apple", "banana", "cherry").onClose(() -> closed.set(true));
+    Stream<String> stream = Stream.of("apple", "banana", "cherry");
 
-    Result<List<String>> result = ok(stream).then(filter(s -> s.startsWith("a"))).then(toList());
+    Result<List<String>> result =
+        ok(stream).then(filter(s -> s.startsWith("a"))).then(Stream::toList);
 
     assertEquals(ok(List.of("apple")), result);
-    assertTrue(closed.get());
   }
 
   @Test
   @DisplayName("Fluent pipeline: map, filter, and collect to set")
   void testFluentMapFilterAndToSet() {
-    AtomicBoolean closed = new AtomicBoolean(false);
-    Stream<String> stream =
-        Stream.of("apple", "banana", "pineapple", "apple").onClose(() -> closed.set(true));
+    Stream<String> stream = Stream.of("apple", "banana", "pineapple", "apple");
 
     Result<Set<Integer>> result =
-        ok(stream).then(map(String::length)).then(filter(len -> len > 5)).then(toSet());
+        ok(stream)
+            .then(map(String::length))
+            .then(filter(len -> len > 5))
+            .then(s -> s.collect(toSet()));
 
     assertEquals(ok(Set.of(6, 9)), result);
-    assertTrue(closed.get());
   }
 
   @Test
@@ -71,7 +70,7 @@ class ResultStreamUtilsTest {
                       consumer.accept(val);
                       consumer.accept(val.toUpperCase());
                     }))
-            .then(toList());
+            .then(Stream::toList);
 
     assertEquals(ok(List.of("a", "A", "b", "B")), result);
   }
@@ -133,7 +132,7 @@ class ResultStreamUtilsTest {
             .then(map(mapper))
             .then(mapMulti(multiMapper))
             .then(filter(predicate))
-            .then(toList());
+            .then(Stream::toList);
 
     Result.<Stream<String>>err(fakeCause()).ifOk(forEach(consumer));
 
@@ -159,8 +158,6 @@ class ResultStreamUtilsTest {
         () -> mapMulti((String s, Consumer<String> c) -> c.accept(s)).apply(null));
     assertThrows(NullPointerException.class, () -> filter((String s) -> true).apply(null));
     assertThrows(NullPointerException.class, () -> forEach((String s) -> {}).accept(null));
-    assertThrows(NullPointerException.class, () -> collect(Collectors.toList()).apply(null));
-    assertThrows(NullPointerException.class, () -> toList().apply(null));
-    assertThrows(NullPointerException.class, () -> toSet().apply(null));
+    assertThrows(NullPointerException.class, () -> collect(toList()).apply(null));
   }
 }

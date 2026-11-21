@@ -226,15 +226,15 @@ class Combiner3Test {
         .isInstanceOf(NullPointerException.class);
   }
 
-  // --- also (Side-effect) Tests ---
+  // --- peek (Side-effect) Tests ---
 
   @Test
-  void shouldExecuteAlsoWhenAllOk() {
+  void shouldExecutePeekWhenAllOk() {
     boolean[] executed = {false};
     Combiner3<String, Integer, Boolean> combiner = new Combiner3<>(ok("foo"), ok(42), ok(true));
 
     Combiner3<String, Integer, Boolean> returned =
-        combiner.also(
+        combiner.peekOk(
             (s, i, b) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
@@ -247,24 +247,24 @@ class Combiner3Test {
   }
 
   @Test
-  void shouldSkipAlsoWhenAnyResultIsErr() {
+  void shouldSkipPeekWhenAnyResultIsErr() {
     boolean[] executed = {false};
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner3<String, Integer, Boolean> combiner = new Combiner3<>(errResult, ok(42), ok(true));
 
-    combiner.also((_, _, _) -> executed[0] = true);
+    combiner.peekOk((_, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
 
   @Test
-  void shouldRejectNullConsumer3InAlsoConsistentlyOnOkAndErr() {
+  void shouldRejectNullConsumer3InPeekConsistentlyOnOkAndErr() {
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner3<String, Integer, Boolean> okCombiner = new Combiner3<>(ok("foo"), ok(42), ok(true));
     Combiner3<String, Integer, Boolean> errCombiner = new Combiner3<>(errResult, ok(42), ok(true));
 
-    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---

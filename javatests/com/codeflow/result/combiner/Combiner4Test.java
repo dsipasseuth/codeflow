@@ -258,16 +258,16 @@ class Combiner4Test {
         .isInstanceOf(NullPointerException.class);
   }
 
-  // --- also (Side-effect) Tests ---
+  // --- peek (Side-effect) Tests ---
 
   @Test
-  void shouldExecuteAlsoWhenAllOk() {
+  void shouldExecutePeekWhenAllOk() {
     boolean[] executed = {false};
     Combiner4<String, Integer, Boolean, Double> combiner =
         new Combiner4<>(ok("foo"), ok(42), ok(true), ok(3.14));
 
     Combiner4<String, Integer, Boolean, Double> returned =
-        combiner.also(
+        combiner.peekOk(
             (s, i, b, d) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
@@ -281,27 +281,27 @@ class Combiner4Test {
   }
 
   @Test
-  void shouldSkipAlsoWhenAnyResultIsErr() {
+  void shouldSkipPeekWhenAnyResultIsErr() {
     boolean[] executed = {false};
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner4<String, Integer, Boolean, Double> combiner =
         new Combiner4<>(errResult, ok(42), ok(true), ok(3.14));
 
-    combiner.also((_, _, _, _) -> executed[0] = true);
+    combiner.peekOk((_, _, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
 
   @Test
-  void shouldRejectNullConsumer4InAlsoConsistentlyOnOkAndErr() {
+  void shouldRejectNullConsumer4InPeekConsistentlyOnOkAndErr() {
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner4<String, Integer, Boolean, Double> okCombiner =
         new Combiner4<>(ok("foo"), ok(42), ok(true), ok(3.14));
     Combiner4<String, Integer, Boolean, Double> errCombiner =
         new Combiner4<>(errResult, ok(42), ok(true), ok(3.14));
 
-    assertThatThrownBy(() -> okCombiner.also(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errCombiner.also(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---

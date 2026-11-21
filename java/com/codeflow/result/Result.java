@@ -156,9 +156,24 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @param consumer The action to perform on the success value.
    * @return This Result instance.
    */
-  default Result<T> also(Consumer<? super T> consumer) {
+  default Result<T> peekOk(Consumer<? super T> consumer) {
     requireNonNull(consumer);
     if (this instanceof Ok(T value)) {
+      consumer.accept(value);
+    }
+    return this;
+  }
+
+  /**
+   * Performs an action on the error value if present, then returns this Result. Useful for side
+   * effects like logging or debugging.
+   *
+   * @param consumer The action to perform on the error cause value.
+   * @return This Result instance.
+   */
+  default Result<T> peekErr(Consumer<? super Cause> consumer) {
+    requireNonNull(consumer);
+    if (this instanceof Err(Cause value)) {
       consumer.accept(value);
     }
     return this;
