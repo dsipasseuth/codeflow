@@ -19,8 +19,8 @@ import java.util.function.Supplier;
  * Holds two {@link Result} values and provides operations for combining their successful values.
  *
  * <p>Use {@code andThen} methods to extend this pair with a third result, or use {@code then}
- * methods to combine the pair into a single result. The {@code peekOk} method allows a side effect
- * to be performed on the pair while retaining this combiner.
+ * methods to combine the pair into a single result. The {@code peekValues} method allows a side
+ * effect to be performed on the pair while retaining this combiner.
  *
  * <p>Combination and failure propagation are delegated to {@link CombinerUtils}.
  *
@@ -159,7 +159,7 @@ public record Combiner2<T1, T2>(Result<T1> result1, Result<T2> result2) {
    * @param fn action to perform with the two values
    * @return this combiner
    */
-  public Combiner2<T1, T2> peekOk(BiConsumer<? super T1, ? super T2> fn) {
+  public Combiner2<T1, T2> peekValues(BiConsumer<? super T1, ? super T2> fn) {
     requireNonNull(fn);
     if (result1 instanceof Result.Ok(var v1) && result2 instanceof Result.Ok(var v2)) {
       fn.accept(v1, v2);

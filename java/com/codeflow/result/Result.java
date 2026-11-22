@@ -157,7 +157,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @param consumer The action to perform on the success value.
    * @return This Result instance.
    */
-  default Result<T> peekOk(Consumer<? super T> consumer) {
+  default Result<T> peekValue(Consumer<? super T> consumer) {
     requireNonNull(consumer);
     if (this instanceof Ok(T value)) {
       consumer.accept(value);
@@ -172,7 +172,7 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
    * @param consumer The action to perform on the error cause value.
    * @return This Result instance.
    */
-  default Result<T> peekErr(Consumer<? super Cause> consumer) {
+  default Result<T> peekCause(Consumer<? super Cause> consumer) {
     requireNonNull(consumer);
     if (this instanceof Err(Cause value)) {
       consumer.accept(value);

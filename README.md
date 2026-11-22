@@ -96,14 +96,14 @@ String strictValue = loadValue().unwrapOrElseThrow(MyApplicationException::new);
 
 `unwrap()` returns the success value and throws `IllegalStateException` on `Err`. Treat it as a boundary escape hatch rather than standard control flow.
 
-### Observe without transforming (`peekOk`, `peekErr`) and terminal inspection (`ifOk`, `ifErr`)
+### Observe without transforming (`peekValue`, `peekCause`) and terminal inspection (`ifOk`, `ifErr`)
 
-`peekOk` runs a side effect on `Ok` and returns the original `Result` for continued chaining; `peekErr` runs a side effect on `Err` and returns the original `Result` so you can log or inspect a `Cause` mid-pipeline. `ifOk` and `ifErr` are terminal operations that inspect the outcome without returning a `Result` to chain further.
+`peekValue` runs a side effect on `Ok` and returns the original `Result` for continued chaining; `peekCause` runs a side effect on `Err` and returns the original `Result` so you can log or inspect a `Cause` mid-pipeline. `ifOk` and `ifErr` are terminal operations that inspect the outcome without returning a `Result` to chain further.
 
 ```java
 Result<Order> order = createOrder(request)
-    .peekOk(saved -> logger.info("Created order {}", saved.id()))
-    .peekErr(cause -> logger.warn("Failed to create order: {}", cause))
+    .peekValue(saved -> logger.info("Created order {}", saved.id()))
+    .peekCause(cause -> logger.warn("Failed to create order: {}", cause))
     .then(Order::toDto);
 
 order.ifErr(error -> logger.warn("Order creation failed: {}", error));
@@ -154,7 +154,7 @@ Terminal stream helpers (`collect`, `forEach`) close their input `Stream` via `t
 
 ## Combining Independent Results
 
-The `Combiner` family (`Combiner` through `Combiner6`) lets you accumulate multiple `Result` values progressively without manual branching. Start a chain with `Combiner.begin(...)`, add stages with `andThen`, `andThenApply`, or `andThenTrying`, inspect intermediate values with `peekOk`, and finish with `then`, `thenApply`, or `thenTrying`.
+The `Combiner` family (`Combiner` through `Combiner6`) lets you accumulate multiple `Result` values progressively without manual branching. Start a chain with `Combiner.begin(...)`, add stages with `andThen`, `andThenApply`, or `andThenTrying`, inspect intermediate values with `peekValue`, and finish with `then`, `thenApply`, or `thenTrying`.
 
 If any step produces an `Err`, dependent stages are skipped and the first failure propagates.
 
@@ -164,7 +164,7 @@ import com.codeflow.result.combiner.Combiner;
 Result<OrderSummary> summary = Combiner.begin(loadUser(userId))
         .andThenApply(() -> loadCart(userId))
         .andThen((user, cart) -> subtotal(user, cart))
-        .peekOk((user, _, total) -> logCheckout(user.id(), total))
+        .peekValue((user, _, total) -> logCheckout(user.id(), total))
         .then((user, cart, total) -> new OrderSummary(user.id(), cart.size(), total));
 ```
 
@@ -181,8 +181,8 @@ The family intentionally stops at **six inputs** (`Combiner6`). If a workflow re
 | `thenApply(fn)` | Chain another `Result`-producing operation |
 | `thenTrying(fn)` | Transform a successful value with exception capture |
 | `onError(fn)` | Recover from an error by returning another `Result` |
-| `peekOk(consumer)` | Observe a success value without changing the `Result` |
-| `peekErr(consumer)` | Observe an error `Cause` without changing the `Result` |
+| `peekValue(consumer)` | Observe a success value without changing the `Result` |
+| `peekCause(consumer)` | Observe an error `Cause` without changing the `Result` |
 | `ifOk(consumer)` | Terminal inspection of success without transforming |
 | `ifErr(consumer)` | Terminal inspection of failure without transforming |
 | `unwrap()` | Return success value or throw `IllegalStateException` |
@@ -195,6 +195,6 @@ The family intentionally stops at **six inputs** (`Combiner6`). If a workflow re
 - `Result.ok(value)` rejects `null` and nested `Result` instances; `Result.err(cause)` rejects `null`.
 - `then` does not catch exceptions; only `trying` and `thenTrying` convert `Exception`s into `Err` via a `Cause` mapper (defaulting to `ExceptionCause`).
 - `InterruptedException` caught inside `trying` or `thenTrying` restores the thread's interrupt flag and is rethrown as a `RuntimeException`.
-- `onError` is for recovery (returning a replacement `Result`), whereas `peekErr` taps a `Cause` mid-chain and `ifErr` is a terminal inspection.
+- `onError` is for recovery (returning a replacement `Result`), whereas `peekCause` taps a `Cause` mid-chain and `ifErr` is a terminal inspection.
 
 This library favors practical, readable application code over maximal abstraction. It is not trying to turn Java into a mathematical exercise or force every value into a wrapper—use `Result` where failure is part of the workflow, and keep ordinary Java types everywhere else.
