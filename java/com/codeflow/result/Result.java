@@ -7,6 +7,7 @@ import com.codeflow.result.Functions.ThrowingSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A container object which may contain either a success value (Ok) or an error value (Err).
@@ -362,6 +363,47 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
       return err(exceptionMapper.apply(e));
     }
     return ok(result);
+  }
+
+  /**
+   * Returns {@code Ok(value)} if {@code value} is non-null, or {@code Err} using a {@code Cause}
+   * supplied by {@code causeSupplier} if {@code value} is {@code null}.
+   *
+   * @param value The nullable value to wrap in a {@code Result}.
+   * @param causeSupplier Supplier providing the error {@code Cause} when {@code value} is {@code
+   *     null}.
+   * @param <T> The type of the non-null success value.
+   * @return A {@code Result.Ok} containing {@code value}, or a {@code Result.Err} with the supplied
+   *     {@code Cause}.
+   * @throws NullPointerException If {@code causeSupplier} is {@code null} or supplies a {@code
+   *     null} {@code Cause}.
+   */
+  static <T> Result<T> okOr(@Nullable T value, Supplier<? extends Cause> causeSupplier) {
+    requireNonNull(causeSupplier);
+    if (value == null) {
+      Cause cause = requireNonNull(causeSupplier.get());
+      return err(cause);
+    }
+    return ok(value);
+  }
+
+  /**
+   * Returns {@code Ok(value)} if {@code value} is non-null, or {@code Err(cause)} if {@code value}
+   * is {@code null}.
+   *
+   * @param value The nullable value to wrap in a {@code Result}.
+   * @param cause The error {@code Cause} to return when {@code value} is {@code null}.
+   * @param <T> The type of the non-null success value.
+   * @return A {@code Result.Ok} containing {@code value}, or {@code Result.Err} containing {@code
+   *     cause}.
+   * @throws NullPointerException If {@code cause} is {@code null}.
+   */
+  static <T> Result<T> okOr(@Nullable T value, Cause cause) {
+    requireNonNull(cause);
+    if (value == null) {
+      return err(cause);
+    }
+    return ok(value);
   }
 
   Function<? super Exception, ? extends Cause> DEFAULT_EXCEPTION_HANDLER = ExceptionCause::new;

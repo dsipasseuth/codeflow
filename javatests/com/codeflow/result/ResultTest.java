@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -625,6 +626,87 @@ public class ResultTest {
             exception -> new FakeCause("io: " + exception.getMessage()));
 
     assertEquals(err(new FakeCause("io: disk failed")), result);
+  }
+
+  @Test
+  void shouldReturnOkAndNotInvokeSupplierWhenValueIsNonNull() {
+    AtomicBoolean supplierCalled = new AtomicBoolean(false);
+
+    Result<String> result =
+        Result.okOr(
+            "value",
+            () -> {
+              supplierCalled.set(true);
+              return new FakeCause("missing");
+            });
+
+    assertThat(result).isEqualTo(Result.ok("value"));
+    assertThat(supplierCalled).isFalse();
+  }
+
+  @Test
+  void shouldReturnErrFromSupplierWhenValueIsNull() {
+    Cause cause = new FakeCause("missing");
+
+    Result<String> result = Result.okOr(null, () -> cause);
+
+    assertThat(result).isEqualTo(Result.err(cause));
+  }
+
+  @Test
+  void shouldThrowWhenCauseSupplierIsNull() {
+
+    assertThatThrownBy(() -> Result.okOr("value", (Supplier<Cause>) null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> Result.okOr(null, (Supplier<Cause>) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldThrowWhenSuppliedCauseIsNull() {
+    assertThatThrownBy(() -> Result.okOr(null, () -> null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownByCauseSupplier() {
+    RuntimeException boom = new IllegalStateException("supplier failed");
+
+    assertThatThrownBy(
+            () ->
+                Result.okOr(
+                    null,
+                    () -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
+  }
+
+  @Test
+  void shouldReturnOkWhenValueIsNonNullWithCause() {
+    Cause cause = new FakeCause("missing");
+
+    Result<String> result = Result.okOr("value", cause);
+
+    assertThat(result).isEqualTo(Result.ok("value"));
+  }
+
+  @Test
+  void shouldReturnErrWhenValueIsNullWithCause() {
+    Cause cause = new FakeCause("missing");
+
+    Result<String> result = Result.okOr(null, cause);
+
+    assertThat(result).isEqualTo(Result.err(cause));
+  }
+
+  @Test
+  void shouldThrowWhenCauseIsNull() {
+    Cause nullCause = null;
+
+    assertThatThrownBy(() -> Result.okOr("value", nullCause))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> Result.okOr(null, nullCause)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
