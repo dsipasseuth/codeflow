@@ -118,7 +118,7 @@ class ResultSyntaxTest {
     List<Number> seen = new ArrayList<>();
     Consumer<Number> consumer = seen::add;
 
-    Result<Integer> result = ok(42).peekOk(consumer);
+    Result<Integer> result = ok(42).peekValue(consumer);
 
     assertEquals(ok(42), result);
     assertEquals(List.of(42), seen);

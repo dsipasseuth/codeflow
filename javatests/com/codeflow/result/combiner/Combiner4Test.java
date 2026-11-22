@@ -267,7 +267,7 @@ class Combiner4Test {
         new Combiner4<>(ok("foo"), ok(42), ok(true), ok(3.14));
 
     Combiner4<String, Integer, Boolean, Double> returned =
-        combiner.peekOk(
+        combiner.peekValues(
             (s, i, b, d) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
@@ -287,7 +287,7 @@ class Combiner4Test {
     Combiner4<String, Integer, Boolean, Double> combiner =
         new Combiner4<>(errResult, ok(42), ok(true), ok(3.14));
 
-    combiner.peekOk((_, _, _, _) -> executed[0] = true);
+    combiner.peekValues((_, _, _, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
@@ -300,8 +300,8 @@ class Combiner4Test {
     Combiner4<String, Integer, Boolean, Double> errCombiner =
         new Combiner4<>(errResult, ok(42), ok(true), ok(3.14));
 
-    assertThatThrownBy(() -> okCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.peekValues(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.peekValues(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---

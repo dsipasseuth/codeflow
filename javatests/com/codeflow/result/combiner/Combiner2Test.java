@@ -216,7 +216,7 @@ class Combiner2Test {
     Combiner2<String, Integer> combiner = new Combiner2<>(ok("foo"), ok(42));
 
     Combiner2<String, Integer> returned =
-        combiner.peekOk(
+        combiner.peekValues(
             (s, i) -> {
               executed[0] = true;
               assertThat(s).isEqualTo("foo");
@@ -233,7 +233,7 @@ class Combiner2Test {
     Result<String> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner2<String, Integer> combiner = new Combiner2<>(errResult, ok(42));
 
-    combiner.peekOk((_, _) -> executed[0] = true);
+    combiner.peekValues((_, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
@@ -244,7 +244,7 @@ class Combiner2Test {
     Result<Integer> errResult = err(new ExceptionCause(new RuntimeException("fail")));
     Combiner2<String, Integer> combiner = new Combiner2<>(ok("foo"), errResult);
 
-    combiner.peekOk((_, _) -> executed[0] = true);
+    combiner.peekValues((_, _) -> executed[0] = true);
 
     assertThat(executed[0]).isFalse();
   }
@@ -255,8 +255,8 @@ class Combiner2Test {
     Combiner2<String, Integer> okCombiner = new Combiner2<>(ok("foo"), ok(42));
     Combiner2<String, Integer> errCombiner = new Combiner2<>(errResult, ok(42));
 
-    assertThatThrownBy(() -> okCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errCombiner.peekOk(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okCombiner.peekValues(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errCombiner.peekValues(null)).isInstanceOf(NullPointerException.class);
   }
 
   // --- Terminal then, thenApply, thenTrying Tests ---

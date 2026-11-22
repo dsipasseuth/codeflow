@@ -342,7 +342,7 @@ public class ResultTest {
     AtomicInteger seen = new AtomicInteger();
 
     Result<Integer> result = ok(42);
-    Result<Integer> returned = result.peekOk(seen::set);
+    Result<Integer> returned = result.peekValue(seen::set);
 
     assertSame(result, returned);
     assertEquals(42, seen.get());
@@ -354,7 +354,7 @@ public class ResultTest {
     AtomicBoolean called = new AtomicBoolean(false);
 
     Result<Integer> result = err(fakeCause());
-    Result<Integer> returned = result.peekOk(_ -> called.set(true));
+    Result<Integer> returned = result.peekValue(_ -> called.set(true));
 
     assertSame(result, returned);
     assertFalse(called.get());
@@ -363,8 +363,9 @@ public class ResultTest {
   @Test
   @DisplayName("peek should reject null consumer consistently on Ok and Err")
   public void testPeekRejectsNullConsumerOnOkAndErr() {
-    assertThrows(NullPointerException.class, () -> ok(42).peekOk(null));
-    assertThrows(NullPointerException.class, () -> Result.<Integer>err(fakeCause()).peekOk(null));
+    assertThrows(NullPointerException.class, () -> ok(42).peekValue(null));
+    assertThrows(
+        NullPointerException.class, () -> Result.<Integer>err(fakeCause()).peekValue(null));
   }
 
   @Test
@@ -373,7 +374,7 @@ public class ResultTest {
     Result<String> result = err(cause);
     List<Cause> observed = new ArrayList<>();
 
-    Result<String> returned = result.peekErr(observed::add);
+    Result<String> returned = result.peekCause(observed::add);
 
     assertThat(observed).containsExactly(cause);
     assertThat(returned).isSameAs(result);
@@ -384,7 +385,7 @@ public class ResultTest {
     Result<String> result = ok("value");
     AtomicBoolean called = new AtomicBoolean(false);
 
-    Result<String> returned = result.peekErr(cause -> called.set(true));
+    Result<String> returned = result.peekCause(cause -> called.set(true));
 
     assertThat(called).isFalse();
     assertThat(returned).isSameAs(result);
@@ -395,8 +396,8 @@ public class ResultTest {
     Result<String> okResult = ok("value");
     Result<String> errResult = err(new FakeCause("boom"));
 
-    assertThatThrownBy(() -> okResult.peekErr(null)).isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> errResult.peekErr(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okResult.peekCause(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.peekCause(null)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
@@ -406,7 +407,7 @@ public class ResultTest {
 
     assertThatThrownBy(
             () ->
-                errResult.peekErr(
+                errResult.peekCause(
                     cause -> {
                       throw boom;
                     }))
