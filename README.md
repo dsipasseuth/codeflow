@@ -35,6 +35,18 @@ String message =
 Result<String> missing = Result.err(new ExceptionCause(new IOException("Not found")));
 ```
 
+### Lift nullable values with `okOr`
+
+Use `okOr` at boundaries where a value may be `null` and should become `Err` with either a `Cause` or a lazily supplied `Cause`.
+
+```java
+Result<User> user = Result.okOr(findNullableUser(userId), new MissingUserCause(userId));
+
+Result<User> lazyUser = Result.okOr(
+    findNullableUser(userId),
+    () -> new MissingUserCause(userId));
+```
+
 ## Chaining
 
 ### Transform a successful value with `then`
@@ -78,32 +90,47 @@ Result<String> customContents = Result.trying(
     exception -> new ExceptionCause(exception));
 ```
 
-## Recovering and Inspecting
+## Recovering, Swapping Causes, and Inspecting
 
-### Recover with `onError` or extract at boundaries with `unwrapOr*`
+### Recover with `recover` / `recoverApply` or extract at boundaries with `unwrapOr*`
 
-Use `onError` to recover mid-pipeline by returning a replacement `Result`, or use `unwrapOr...` at system boundaries when you need a plain value.
+Use `recover` to map a `Cause` to a fallback value wrapped in `Ok`, `recoverApply` when recovery itself returns a `Result`, or `unwrapOr...` at system boundaries when you need a plain value.
 
 ```java
 Result<String> recovered = loadValue()
-    .onError(error -> Result.ok("fallback"));
+    .recover(cause -> "fallback");
+
+Result<String> recoveredResult = loadValue()
+    .recoverApply(cause -> loadFallbackResult(cause));
 
 String value = loadValue().unwrapOr("default");
-String computedFallback = loadValue().unwrapOrElse(error -> "fallback for: " + error);
+String computedFallback = loadValue().unwrapOrElse(cause -> "fallback for: " + cause);
 String suppliedFallback = loadValue().unwrapOrElse(() -> "default");
 String strictValue = loadValue().unwrapOrElseThrow(MyApplicationException::new);
 ```
 
 `unwrap()` returns the success value and throws `IllegalStateException` on `Err`. Treat it as a boundary escape hatch rather than standard control flow.
 
-### Observe without transforming (`peekValue`, `peekCause`) and terminal inspection (`ifOk`, `ifErr`)
+### Relabel error causes with `swapCause` and `swapCauseIf`
 
-`peekValue` runs a side effect on `Ok` and returns the original `Result` for continued chaining; `peekCause` runs a side effect on `Err` and returns the original `Result` so you can log or inspect a `Cause` mid-pipeline. `ifOk` and `ifErr` are terminal operations that inspect the outcome without returning a `Result` to chain further.
+Use `swapCause` to replace the `Cause` on an `Err` while staying on the error track, or `swapCauseIf` to replace the `Cause` only when it matches a target `Cause` subtype (with either a replacement `Cause` or a `Supplier<? extends Cause>`).
+
+```java
+Result<Order> relabeled = createOrder(request)
+    .swapCause(cause -> new OrderCreationCause(cause))
+    .swapCauseIf(TimeoutCause.class, new RetryableOrderCause())
+    .swapCauseIf(ValidationCause.class, () -> new InvalidOrderCause());
+```
+
+### Observe without transforming (`peekValue`, `peekCause`, `peekCauseIf`) and terminal inspection (`ifOk`, `ifErr`)
+
+`peekValue` runs a side effect on `Ok` and returns the original `Result` for continued chaining; `peekCause` runs a side effect on `Err` and returns the original `Result`; `peekCauseIf` runs a side effect only when the `Cause` matches a target `Cause` class. `ifOk` and `ifErr` are terminal operations that inspect the outcome without returning a `Result` to chain further.
 
 ```java
 Result<Order> order = createOrder(request)
     .peekValue(saved -> logger.info("Created order {}", saved.id()))
     .peekCause(cause -> logger.warn("Failed to create order: {}", cause))
+    .peekCauseIf(TimeoutCause.class, timeout -> metrics.increment("order.timeouts"))
     .then(Order::toDto);
 
 order.ifErr(error -> logger.warn("Order creation failed: {}", error));
@@ -154,7 +181,7 @@ Terminal stream helpers (`collect`, `forEach`) close their input `Stream` via `t
 
 ## Combining Independent Results
 
-The `Combiner` family (`Combiner` through `Combiner6`) lets you accumulate multiple `Result` values progressively without manual branching. Start a chain with `Combiner.begin(...)`, add stages with `andThen`, `andThenApply`, or `andThenTrying`, inspect intermediate values with `peekValue`, and finish with `then`, `thenApply`, or `thenTrying`.
+The `Combiner` family (`Combiner` through `Combiner6`) lets you accumulate multiple `Result` values progressively without manual branching. Start a chain with `Combiner.begin(...)`, add stages with `andThen`, `andThenApply`, or `andThenTrying`, inspect intermediate values with `peekValues`, and finish with `then`, `thenApply`, or `thenTrying`.
 
 If any step produces an `Err`, dependent stages are skipped and the first failure propagates.
 
@@ -164,7 +191,7 @@ import com.codeflow.result.combiner.Combiner;
 Result<OrderSummary> summary = Combiner.begin(loadUser(userId))
         .andThenApply(() -> loadCart(userId))
         .andThen((user, cart) -> subtotal(user, cart))
-        .peekValue((user, _, total) -> logCheckout(user.id(), total))
+        .peekValues((user, _, total) -> logCheckout(user.id(), total))
         .then((user, cart, total) -> new OrderSummary(user.id(), cart.size(), total));
 ```
 
@@ -176,13 +203,20 @@ The family intentionally stops at **six inputs** (`Combiner6`). If a workflow re
 |---|---|
 | `ok(value)` | Create a successful `Result` |
 | `err(cause)` | Create a failed `Result` |
+| `okOr(value, cause)` | Convert a nullable value into `Ok` or `Err(cause)` |
+| `okOr(value, causeSupplier)` | Convert a nullable value into `Ok` or a lazily supplied `Err` |
 | `trying(supplier)` | Run a potentially-throwing supplier and capture exceptions |
 | `then(fn)` | Transform a successful value in sequence |
 | `thenApply(fn)` | Chain another `Result`-producing operation |
 | `thenTrying(fn)` | Transform a successful value with exception capture |
-| `onError(fn)` | Recover from an error by returning another `Result` |
+| `recover(fn)` | Recover from an error by mapping `Cause` to a fallback value wrapped in `Ok` |
+| `recoverApply(fn)` | Recover from an error by returning another `Result` |
+| `swapCause(fn)` | Replace the error `Cause` on `Err` while staying on the error path |
+| `swapCauseIf(clazz, cause)` | Replace the error `Cause` with `cause` when it matches `clazz` |
+| `swapCauseIf(clazz, causeSupplier)` | Replace the error `Cause` from `causeSupplier` when it matches `clazz` |
 | `peekValue(consumer)` | Observe a success value without changing the `Result` |
 | `peekCause(consumer)` | Observe an error `Cause` without changing the `Result` |
+| `peekCauseIf(clazz, consumer)` | Observe a `Cause` only when it matches `clazz` without changing the `Result` |
 | `ifOk(consumer)` | Terminal inspection of success without transforming |
 | `ifErr(consumer)` | Terminal inspection of failure without transforming |
 | `unwrap()` | Return success value or throw `IllegalStateException` |
@@ -195,6 +229,6 @@ The family intentionally stops at **six inputs** (`Combiner6`). If a workflow re
 - `Result.ok(value)` rejects `null` and nested `Result` instances; `Result.err(cause)` rejects `null`.
 - `then` does not catch exceptions; only `trying` and `thenTrying` convert `Exception`s into `Err` via a `Cause` mapper (defaulting to `ExceptionCause`).
 - `InterruptedException` caught inside `trying` or `thenTrying` restores the thread's interrupt flag and is rethrown as a `RuntimeException`.
-- `onError` is for recovery (returning a replacement `Result`), whereas `peekCause` taps a `Cause` mid-chain and `ifErr` is a terminal inspection.
+- `recover` and `recoverApply` recover from errors, `swapCause` and `swapCauseIf` relabel causes on the error path, `peekValue` / `peekCause` / `peekCauseIf` tap values or causes mid-chain, and `ifOk` / `ifErr` are terminal inspections.
 
 This library favors practical, readable application code over maximal abstraction. It is not trying to turn Java into a mathematical exercise or force every value into a wrapper—use `Result` where failure is part of the workflow, and keep ordinary Java types everywhere else.
