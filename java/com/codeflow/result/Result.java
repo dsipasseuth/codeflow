@@ -136,16 +136,100 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
   }
 
   /**
-   * Maps the error value to a new error value using the provided mapper function. If this is an
-   * {@link Ok}, the success is propagated unchanged.
+   * Recovers from an error by mapping the failure {@link Cause} to a non-null fallback value
+   * wrapped in {@link Ok}. Returns this {@link Result} unchanged if already {@link Ok}.
    *
-   * @param fn The function to apply to the error value.
-   * @return A new Result containing the original success or the mapped error.
+   * @param mapper Function mapping the error {@link Cause} to a replacement value.
+   * @return A {@link Result.Ok} containing the mapped fallback value on failure, or this instance
+   *     if already successful.
+   * @throws NullPointerException If {@code mapper} is {@code null}, or if {@code mapper} returns a
+   *     {@code null} value or a nested {@link Result}.
    */
-  default Result<T> onError(Function<Cause, Result<T>> fn) {
-    requireNonNull(fn);
-    if (this instanceof Err(var reason)) {
-      return requireNonNull(fn.apply(reason));
+  default Result<T> recover(Function<? super Cause, ? extends T> mapper) {
+    requireNonNull(mapper);
+    if (this instanceof Err<T>(Cause cause)) {
+      return ok(mapper.apply(cause));
+    }
+    return this;
+  }
+
+  /**
+   * Recovers from an error by mapping the failure {@link Cause} to a replacement {@link Result},
+   * allowing recovery itself to succeed or fail with another {@link Cause}. Returns this {@link
+   * Result} unchanged if already {@link Ok}.
+   *
+   * @param mapper Function mapping the error {@link Cause} to a replacement {@link Result}.
+   * @return The {@link Result} produced by {@code mapper} on failure, or this instance if already
+   *     successful.
+   * @throws NullPointerException If {@code mapper} is {@code null} or returns {@code null}.
+   */
+  default Result<T> recoverApply(Function<? super Cause, ? extends Result<? extends T>> mapper) {
+    requireNonNull(mapper);
+    if (this instanceof Err<T>(Cause cause)) {
+      @SuppressWarnings("unchecked")
+      Result<T> recovered = (Result<T>) requireNonNull(mapper.apply(cause));
+      return recovered;
+    }
+    return this;
+  }
+
+  /**
+   * Replaces the error {@link Cause} on an {@link Err} without recovering to a success value.
+   * Returns this {@link Result} unchanged if already {@link Ok}.
+   *
+   * @param causeMapper Function mapping the existing {@link Cause} to a new {@link Cause}.
+   * @return A {@link Result.Err} with the mapped {@link Cause}, or this instance if already
+   *     successful.
+   * @throws NullPointerException If {@code causeMapper} is {@code null} or returns a {@code null}
+   *     {@link Cause}.
+   */
+  default Result<T> swapCause(Function<? super Cause, ? extends Cause> causeMapper) {
+    requireNonNull(causeMapper);
+    if (this instanceof Err<T>(Cause cause)) {
+      return err(causeMapper.apply(cause));
+    }
+    return this;
+  }
+
+  /**
+   * Replaces the error {@link Cause} with {@code otherCause} when this {@link Result} is an {@link
+   * Err} whose cause is an instance of {@code targetCause}. Returns this {@link Result} unchanged
+   * if it is already {@link Ok} or if the cause does not match {@code targetCause}.
+   *
+   * @param targetCause The {@link Cause} subtype to match against the current error cause.
+   * @param otherCause The replacement {@link Cause} when {@code targetCause} matches.
+   * @return A {@link Result.Err} with {@code otherCause} if matched, or this instance unchanged.
+   * @throws NullPointerException If {@code targetCause} or {@code otherCause} is {@code null}.
+   */
+  default Result<T> swapCauseIf(Class<? extends Cause> targetCause, Cause otherCause) {
+    requireNonNull(targetCause);
+    requireNonNull(otherCause);
+    if (this instanceof Err<T>(Cause cause) && targetCause.isInstance(cause)) {
+      return err(otherCause);
+    }
+    return this;
+  }
+
+  /**
+   * Replaces the error {@link Cause} with a cause supplied by {@code causeSupplier} when this
+   * {@link Result} is an {@link Err} whose cause is an instance of {@code targetCause}. Returns
+   * this {@link Result} unchanged if it is already {@link Ok} or if the cause does not match {@code
+   * targetCause}.
+   *
+   * @param targetCause The {@link Cause} subtype to match against the current error cause.
+   * @param causeSupplier Supplier providing the replacement {@link Cause} when {@code targetCause}
+   *     matches.
+   * @return A {@link Result.Err} with the supplied {@link Cause} if matched, or this instance
+   *     unchanged.
+   * @throws NullPointerException If {@code targetCause}, {@code causeSupplier}, or the supplied
+   *     {@link Cause} is {@code null}.
+   */
+  default Result<T> swapCauseIf(
+      Class<? extends Cause> targetCause, Supplier<? extends Cause> causeSupplier) {
+    requireNonNull(targetCause);
+    requireNonNull(causeSupplier);
+    if (this instanceof Err<T>(Cause cause) && targetCause.isInstance(cause)) {
+      return err(requireNonNull(causeSupplier.get()));
     }
     return this;
   }
@@ -176,6 +260,15 @@ public sealed interface Result<T> permits Result.Ok, Result.Err {
     requireNonNull(consumer);
     if (this instanceof Err(Cause value)) {
       consumer.accept(value);
+    }
+    return this;
+  }
+
+  default <C extends Cause> Result<T> peekCauseIf(Class<C> clazz, Consumer<? super C> consumer) {
+    requireNonNull(clazz);
+    requireNonNull(consumer);
+    if (this instanceof Err<T>(Cause cause) && clazz.isInstance(cause)) {
+      consumer.accept(clazz.cast(cause));
     }
     return this;
   }

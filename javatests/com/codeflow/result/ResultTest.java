@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.DisplayName;
@@ -314,26 +315,159 @@ public class ResultTest {
   }
 
   @Test
-  @DisplayName("onError should map Err value")
-  public void testOnErrorMapsErr() {
-    Result<String> result = Result.<String>err(fakeCause()).onError(_ -> ok("value"));
+  void shouldRecoverWithMappedValueOnErr() {
+    Cause cause = new FakeCause("boom");
+    Result<String> result = err(cause);
 
-    assertEquals(ok("value"), result);
+    Result<String> recovered = result.recover(c -> "fallback:" + c);
+
+    assertThat(recovered).isEqualTo(ok("fallback:" + cause));
   }
 
   @Test
-  @DisplayName("onError should propagate Ok")
-  public void testOnErrorPropagatesOk() {
-    Result<String> result = ok("value").onError(_ -> ok("broken"));
+  void shouldSkipMapperAndReturnSameOkInstanceOnRecover() {
+    Result<String> result = ok("value");
+    AtomicBoolean called = new AtomicBoolean(false);
 
-    assertEquals(ok("value"), result);
+    Result<String> returned =
+        result.recover(
+            _ -> {
+              called.set(true);
+              return "fallback";
+            });
+
+    assertThat(called).isFalse();
+    assertThat(returned).isSameAs(result);
   }
 
   @Test
-  @DisplayName("onError should reject null mapper consistently on Ok and Err")
-  public void testOnErrorRejectsNullMapperOnOkAndErr() {
-    assertThrows(NullPointerException.class, () -> ok("value").onError(null));
-    assertThrows(NullPointerException.class, () -> Result.<String>err(fakeCause()).onError(null));
+  void shouldRejectNullMapperOrNullMappedValueOnRecover() {
+    Result<String> okResult = ok("value");
+    Result<String> errResult = err(new FakeCause("boom"));
+
+    assertThatThrownBy(() -> okResult.recover(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.recover(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.recover(_ -> null)).isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownByRecoverMapper() {
+    Result<String> errResult = err(new FakeCause("boom"));
+    RuntimeException boom = new IllegalStateException("recover failed");
+
+    assertThatThrownBy(
+            () ->
+                errResult.recover(
+                    _ -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
+  }
+
+  @Test
+  void shouldRecoverApplyToOkOrAnotherErr() {
+    Cause initialCause = new FakeCause("boom");
+    Cause secondaryCause = new FakeCause("still-bad");
+    Result<String> result = err(initialCause);
+
+    Result<String> toOk = result.recoverApply(_ -> ok("recovered"));
+    Result<String> toErr = result.recoverApply(_ -> err(secondaryCause));
+
+    assertThat(toOk).isEqualTo(ok("recovered"));
+    assertThat(toErr).isEqualTo(err(secondaryCause));
+  }
+
+  @Test
+  void shouldSkipMapperAndReturnSameOkInstanceOnRecoverApply() {
+    Result<String> result = ok("value");
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result<String> returned =
+        result.recoverApply(
+            _ -> {
+              called.set(true);
+              return ok("fallback");
+            });
+
+    assertThat(called).isFalse();
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldRejectNullMapperOrNullResultOnRecoverApply() {
+    Result<String> okResult = ok("value");
+    Result<String> errResult = err(new FakeCause("boom"));
+
+    assertThatThrownBy(() -> okResult.recoverApply(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.recoverApply(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.recoverApply(_ -> null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownByRecoverApplyMapper() {
+    Result<String> errResult = err(new FakeCause("boom"));
+    RuntimeException boom = new IllegalStateException("recoverApply failed");
+
+    assertThatThrownBy(
+            () ->
+                errResult.recoverApply(
+                    _ -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
+  }
+
+  @Test
+  void shouldSwapCauseOnErrAndKeepErrState() {
+    Cause original = new FakeCause("raw");
+    Cause replacement = new FakeCause("wrapped");
+    Result<String> result = err(original);
+
+    Result<String> swapped = result.swapCause(_ -> replacement);
+
+    assertThat(swapped).isEqualTo(err(replacement));
+  }
+
+  @Test
+  void shouldSkipCauseMapperAndReturnSameOkInstanceOnSwapCause() {
+    Result<String> result = ok("value");
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result<String> returned =
+        result.swapCause(
+            _ -> {
+              called.set(true);
+              return new FakeCause("wrapped");
+            });
+
+    assertThat(called).isFalse();
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldRejectNullMapperOrNullNewCauseOnSwapCause() {
+    Result<String> okResult = ok("value");
+    Result<String> errResult = err(new FakeCause("boom"));
+
+    assertThatThrownBy(() -> okResult.swapCause(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.swapCause(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.swapCause(_ -> null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownBySwapCauseMapper() {
+    Result<String> errResult = err(new FakeCause("boom"));
+    RuntimeException boom = new IllegalStateException("swapCause failed");
+
+    assertThatThrownBy(
+            () ->
+                errResult.swapCause(
+                    _ -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
   }
 
   @Test
@@ -385,7 +519,7 @@ public class ResultTest {
     Result<String> result = ok("value");
     AtomicBoolean called = new AtomicBoolean(false);
 
-    Result<String> returned = result.peekCause(cause -> called.set(true));
+    Result<String> returned = result.peekCause(_ -> called.set(true));
 
     assertThat(called).isFalse();
     assertThat(returned).isSameAs(result);
@@ -408,7 +542,7 @@ public class ResultTest {
     assertThatThrownBy(
             () ->
                 errResult.peekCause(
-                    cause -> {
+                    _ -> {
                       throw boom;
                     }))
         .isSameAs(boom);
@@ -703,11 +837,176 @@ public class ResultTest {
 
   @Test
   void shouldThrowWhenCauseIsNull() {
-    Cause nullCause = null;
-
-    assertThatThrownBy(() -> Result.okOr("value", nullCause))
+    assertThatThrownBy(() -> Result.okOr("value", (Cause) null))
         .isInstanceOf(NullPointerException.class);
-    assertThatThrownBy(() -> Result.okOr(null, nullCause)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> Result.okOr(null, (Cause) null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldInvokeConsumerWhenCauseMatchesClassAndReturnSameErrInstance() {
+    FakeCause cause = new FakeCause("timeout");
+    Result<String> result = err(cause);
+    List<FakeCause> observed = new ArrayList<>();
+
+    Result<String> returned = result.peekCauseIf(FakeCause.class, observed::add);
+
+    assertThat(observed).containsExactly(cause);
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldSkipConsumerWhenCauseDoesNotMatchClassAndReturnSameErrInstance() {
+    Result<String> result = err(new ExceptionCause(new RuntimeException("Unmatched")));
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result<String> returned = result.peekCauseIf(FakeCause.class, _ -> called.set(true));
+
+    assertThat(called).isFalse();
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldInvokeConsumerAndReturnSameOkInstanceWhenOk() {
+    Result<String> result = ok("hello");
+    List<String> observed = new ArrayList<>();
+
+    Result<String> returned = result.peekValue(observed::add);
+
+    assertThat(observed).containsExactly("hello");
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldSkipConsumerAndReturnSameErrInstanceWhenErr() {
+    Result<String> result = err(new FakeCause("boom"));
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result<String> returned = result.peekValue(_ -> called.set(true));
+
+    assertThat(called).isFalse();
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldRejectNullConsumerOnPeekValue() {
+    Result<String> okResult = ok("hello");
+    Result<String> errResult = err(new FakeCause("boom"));
+
+    assertThatThrownBy(() -> okResult.peekValue(null)).isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.peekValue(null)).isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldRejectNullClazzOrNullConsumerConsistently() {
+    Result<String> okResult = ok("value");
+    Result<String> errResult = err(new FakeCause("timeout"));
+    Consumer<FakeCause> noop = _ -> {};
+
+    assertThatThrownBy(() -> okResult.peekCauseIf(null, noop))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.peekCauseIf(null, noop))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> okResult.peekCauseIf(FakeCause.class, null))
+        .isInstanceOf(NullPointerException.class);
+    assertThatThrownBy(() -> errResult.peekCauseIf(FakeCause.class, null))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownByMatchingConsumer() {
+    Result<String> errResult = err(new FakeCause("timeout"));
+    RuntimeException boom = new IllegalStateException("consumer failed");
+
+    assertThatThrownBy(
+            () ->
+                errResult.peekCauseIf(
+                    FakeCause.class,
+                    _ -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
+  }
+
+  @Test
+  void shouldSwapCauseWhenMatchingTypeWithCauseInstance() {
+    Result<String> result = err(new FakeCause("timeout"));
+    Cause replacement = new FakeCause("mapped");
+
+    Result<String> swapped = result.swapCauseIf(FakeCause.class, replacement);
+
+    assertThat(swapped).isEqualTo(err(replacement));
+  }
+
+  @Test
+  void shouldKeepOriginalErrWhenTypeDoesNotMatchWithCauseInstance() {
+    Cause original = new FakeCause("other");
+    Result<String> result = err(original);
+    Cause replacement = new FakeCause("mapped");
+
+    Result<String> returned = result.swapCauseIf(ExceptionCause.class, replacement);
+
+    assertThat(returned).isSameAs(result);
+    assertThat(returned).isEqualTo(err(original));
+  }
+
+  @Test
+  void shouldSkipAndReturnSameOkInstanceWithCauseInstance() {
+    Result<String> result = ok("value");
+    Cause replacement = new FakeCause("mapped");
+
+    Result<String> returned = result.swapCauseIf(FakeCause.class, replacement);
+
+    assertThat(returned).isSameAs(result);
+  }
+
+  @Test
+  void shouldSwapCauseLazilyWhenMatchingTypeWithSupplier() {
+    Result<String> result = err(new FakeCause("timeout"));
+    Cause replacement = new FakeCause("mapped");
+    AtomicBoolean called = new AtomicBoolean(false);
+
+    Result<String> swapped =
+        result.swapCauseIf(
+            FakeCause.class,
+            () -> {
+              called.set(true);
+              return replacement;
+            });
+
+    assertThat(called).isTrue();
+    assertThat(swapped).isEqualTo(err(replacement));
+  }
+
+  @Test
+  void shouldNotInvokeSupplierWhenTypeDoesNotMatchOrWhenOk() {
+    Result<String> errResult = err(new FakeCause("other"));
+    Result<String> okResult = ok("value");
+    AtomicBoolean called = new AtomicBoolean(false);
+    Supplier<? extends Cause> supplier =
+        () -> {
+          called.set(true);
+          return new FakeCause("mapped");
+        };
+
+    assertThat(errResult.swapCauseIf(ExceptionCause.class, supplier)).isSameAs(errResult);
+    assertThat(okResult.swapCauseIf(ExceptionCause.class, supplier)).isSameAs(okResult);
+    assertThat(called).isFalse();
+  }
+
+  @Test
+  void shouldPropagateExceptionThrownBySupplierWhenMatchingType() {
+    Result<String> result = err(new FakeCause("timeout"));
+    RuntimeException boom = new IllegalStateException("supplier failed");
+
+    assertThatThrownBy(
+            () ->
+                result.swapCauseIf(
+                    FakeCause.class,
+                    () -> {
+                      throw boom;
+                    }))
+        .isSameAs(boom);
   }
 
   @Test
